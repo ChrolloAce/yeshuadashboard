@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserIcon, PlusIcon } from 'lucide-react';
+import { User, Plus } from 'lucide-react';
 
 export class ClientsTab extends React.Component {
   public render(): React.ReactNode {
@@ -12,7 +12,7 @@ export class ClientsTab extends React.Component {
             <p className="text-gray-600 mt-2">Manage your customer relationships and history.</p>
           </div>
           <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2">
-            <PlusIcon className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
             <span>Add Client</span>
           </button>
         </div>
@@ -20,7 +20,7 @@ export class ClientsTab extends React.Component {
         {/* Empty State */}
         <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <UserIcon className="w-8 h-8 text-gray-400" />
+            <User className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No clients yet</h3>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">

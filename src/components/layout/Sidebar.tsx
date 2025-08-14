@@ -1,12 +1,12 @@
 import React from 'react';
 import { 
-  HomeIcon, 
-  UserGroupIcon, 
-  PlusCircleIcon, 
-  ChartBarIcon,
-  CogIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon
+  Home, 
+  Users, 
+  PlusCircle, 
+  BarChart3,
+  Settings,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,27 +27,27 @@ export class Sidebar extends React.Component<SidebarProps> {
     {
       id: 'home',
       label: 'Dashboard',
-      icon: <HomeIcon className="w-5 h-5" />
+      icon: <Home className="w-5 h-5" />
     },
     {
       id: 'acquisition',
       label: 'Acquisition',
-      icon: <PlusCircleIcon className="w-5 h-5" />
+      icon: <PlusCircle className="w-5 h-5" />
     },
     {
       id: 'clients',
       label: 'Clients',
-      icon: <UserGroupIcon className="w-5 h-5" />
+      icon: <Users className="w-5 h-5" />
     },
     {
       id: 'analytics',
       label: 'Analytics',
-      icon: <ChartBarIcon className="w-5 h-5" />
+      icon: <BarChart3 className="w-5 h-5" />
     },
     {
       id: 'settings',
       label: 'Settings',
-      icon: <CogIcon className="w-5 h-5" />
+      icon: <Settings className="w-5 h-5" />
     }
   ];
 
@@ -92,9 +92,9 @@ export class Sidebar extends React.Component<SidebarProps> {
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
-              <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+              <ChevronRight className="w-4 h-4 text-gray-600" />
             ) : (
-              <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
             )}
           </button>
         </div>

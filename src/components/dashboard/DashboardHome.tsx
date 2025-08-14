@@ -1,9 +1,9 @@
 import React from 'react';
 import { 
-  CalendarIcon,
-  UserGroupIcon,
-  CurrencyDollarIcon,
-  ClockIcon
+  Calendar,
+  Users,
+  DollarSign,
+  Clock
 } from 'lucide-react';
 
 interface StatCardProps {
@@ -62,7 +62,7 @@ export class DashboardHome extends React.Component {
           <StatCard
             title="Today's Bookings"
             value="12"
-            icon={<CalendarIcon className="w-6 h-6" />}
+            icon={<Calendar className="w-6 h-6" />}
             change="+2 from yesterday"
             changeType="positive"
           />
@@ -70,7 +70,7 @@ export class DashboardHome extends React.Component {
           <StatCard
             title="Active Clients"
             value="248"
-            icon={<UserGroupIcon className="w-6 h-6" />}
+            icon={<Users className="w-6 h-6" />}
             change="+12 this month"
             changeType="positive"
           />
@@ -78,7 +78,7 @@ export class DashboardHome extends React.Component {
           <StatCard
             title="Revenue Today"
             value="$1,840"
-            icon={<CurrencyDollarIcon className="w-6 h-6" />}
+            icon={<DollarSign className="w-6 h-6" />}
             change="+8.2% from yesterday"
             changeType="positive"
           />
@@ -86,7 +86,7 @@ export class DashboardHome extends React.Component {
           <StatCard
             title="Avg. Service Time"
             value="2.5h"
-            icon={<ClockIcon className="w-6 h-6" />}
+            icon={<Clock className="w-6 h-6" />}
             change="Same as yesterday"
             changeType="neutral"
           />

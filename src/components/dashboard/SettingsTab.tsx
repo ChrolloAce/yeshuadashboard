@@ -1,5 +1,5 @@
 import React from 'react';
-import { CogIcon, UserIcon, BellIcon, CreditCardIcon } from 'lucide-react';
+import { Settings, User, Bell, CreditCard } from 'lucide-react';
 
 export class SettingsTab extends React.Component {
   public render(): React.ReactNode {
@@ -16,7 +16,7 @@ export class SettingsTab extends React.Component {
           <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <UserIcon className="w-5 h-5 text-primary-600" />
+                <User className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Profile Settings</h3>
@@ -31,7 +31,7 @@ export class SettingsTab extends React.Component {
           <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <BellIcon className="w-5 h-5 text-primary-600" />
+                <Bell className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
@@ -46,7 +46,7 @@ export class SettingsTab extends React.Component {
           <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <CreditCardIcon className="w-5 h-5 text-primary-600" />
+                <CreditCard className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Payment Settings</h3>
@@ -61,7 +61,7 @@ export class SettingsTab extends React.Component {
           <div className="bg-white rounded-lg shadow-soft border border-gray-200 p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                <CogIcon className="w-5 h-5 text-primary-600" />
+                <Settings className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Business Settings</h3>
