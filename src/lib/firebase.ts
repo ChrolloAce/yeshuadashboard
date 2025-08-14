@@ -34,26 +34,27 @@ if (typeof window !== 'undefined') {
 }
 export { analytics };
 
-// Connect to emulators in development
+// Connect to emulators in development (optional)
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  // Only connect to emulators if not already connected
+  // Only connect to emulators if environment variables are set
   try {
-    // Auth emulator
-    if (!auth.config.emulator) {
-      connectAuthEmulator(auth, 'http://localhost:9099');
+    if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+      connectAuthEmulator(auth, `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`, {
+        disableWarnings: true
+      });
     }
     
-    // Firestore emulator
-    if (!db._delegate._databaseId.projectId.includes('localhost')) {
-      connectFirestoreEmulator(db, 'localhost', 8080);
+    if (process.env.FIRESTORE_EMULATOR_HOST) {
+      const [host, port] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
+      connectFirestoreEmulator(db, host, parseInt(port));
     }
     
-    // Storage emulator
-    if (!storage._location.host.includes('localhost')) {
-      connectStorageEmulator(storage, 'localhost', 9199);
+    if (process.env.FIREBASE_STORAGE_EMULATOR_HOST) {
+      const [host, port] = process.env.FIREBASE_STORAGE_EMULATOR_HOST.split(':');
+      connectStorageEmulator(storage, host, parseInt(port));
     }
   } catch (error) {
-    console.log('Emulators already connected or not available');
+    console.log('Emulators not configured or already connected');
   }
 }
 
