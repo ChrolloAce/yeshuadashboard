@@ -4,6 +4,7 @@ import React from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { AcquisitionTab } from '@/components/dashboard/AcquisitionTab';
+import { JobsTab } from '@/components/dashboard/JobsTab';
 import { ClientsTab } from '@/components/dashboard/ClientsTab';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
@@ -30,6 +31,8 @@ export default class DashboardPage extends React.Component<{}, DashboardPageStat
         return <DashboardHome />;
       case 'acquisition':
         return <AcquisitionTab />;
+      case 'jobs':
+        return <JobsTab />;
       case 'clients':
         return <ClientsTab />;
       case 'analytics':

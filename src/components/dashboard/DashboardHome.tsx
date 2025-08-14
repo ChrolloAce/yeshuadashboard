@@ -3,8 +3,11 @@ import {
   Calendar,
   Users,
   DollarSign,
-  Clock
+  Clock,
+  Briefcase,
+  CheckCircle
 } from 'lucide-react';
+import { JobsManager } from '@/services/jobs/JobsManager';
 
 interface StatCardProps {
   title: string;
@@ -47,8 +50,44 @@ class StatCard extends React.Component<StatCardProps> {
   }
 }
 
-export class DashboardHome extends React.Component {
+interface DashboardHomeState {
+  jobStats: {
+    total: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    todayJobs: number;
+  };
+}
+
+export class DashboardHome extends React.Component<{}, DashboardHomeState> {
+  private jobsManager: JobsManager;
+  private unsubscribe?: () => void;
+
+  constructor(props: {}) {
+    super(props);
+    this.jobsManager = new JobsManager();
+    this.state = {
+      jobStats: this.jobsManager.getJobStats()
+    };
+  }
+
+  public componentDidMount(): void {
+    this.unsubscribe = this.jobsManager.subscribe(() => {
+      this.setState({
+        jobStats: this.jobsManager.getJobStats()
+      });
+    });
+  }
+
+  public componentWillUnmount(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
+  }
+
   public render(): React.ReactNode {
+    const { jobStats } = this.state;
     return (
       <div className="p-8">
         {/* Header */}
@@ -60,35 +99,35 @@ export class DashboardHome extends React.Component {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
-            title="Today's Bookings"
-            value="12"
+            title="Today's Jobs"
+            value={jobStats.todayJobs.toString()}
             icon={<Calendar className="w-6 h-6" />}
             change="+2 from yesterday"
             changeType="positive"
           />
           
           <StatCard
-            title="Active Clients"
-            value="248"
-            icon={<Users className="w-6 h-6" />}
+            title="Total Jobs"
+            value={jobStats.total.toString()}
+            icon={<Briefcase className="w-6 h-6" />}
             change="+12 this month"
             changeType="positive"
           />
           
           <StatCard
-            title="Revenue Today"
-            value="$1,840"
-            icon={<DollarSign className="w-6 h-6" />}
-            change="+8.2% from yesterday"
-            changeType="positive"
+            title="In Progress"
+            value={jobStats.inProgress.toString()}
+            icon={<Clock className="w-6 h-6" />}
+            change="Active now"
+            changeType="neutral"
           />
           
           <StatCard
-            title="Avg. Service Time"
-            value="2.5h"
-            icon={<Clock className="w-6 h-6" />}
-            change="Same as yesterday"
-            changeType="neutral"
+            title="Completed"
+            value={jobStats.completed.toString()}
+            icon={<CheckCircle className="w-6 h-6" />}
+            change="+8.2% this week"
+            changeType="positive"
           />
         </div>
 

@@ -6,7 +6,8 @@ import {
   BarChart3,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Briefcase
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +34,11 @@ export class Sidebar extends React.Component<SidebarProps> {
       id: 'acquisition',
       label: 'Acquisition',
       icon: <PlusCircle className="w-5 h-5" />
+    },
+    {
+      id: 'jobs',
+      label: 'Jobs',
+      icon: <Briefcase className="w-5 h-5" />
     },
     {
       id: 'clients',
