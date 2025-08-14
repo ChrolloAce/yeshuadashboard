@@ -8,6 +8,7 @@ import { JobsTab } from '@/components/dashboard/JobsTab';
 import { ClientsTab } from '@/components/dashboard/ClientsTab';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 interface DashboardPageState {
   currentTab: string;
@@ -46,12 +47,14 @@ export default class DashboardPage extends React.Component<{}, DashboardPageStat
 
   public render(): React.ReactNode {
     return (
-      <DashboardLayout 
-        currentTab={this.state.currentTab}
-        onTabChange={this.handleTabChange}
-      >
-        {this.renderCurrentTab()}
-      </DashboardLayout>
+      <ProtectedRoute requiredRole="admin">
+        <DashboardLayout 
+          currentTab={this.state.currentTab}
+          onTabChange={this.handleTabChange}
+        >
+          {this.renderCurrentTab()}
+        </DashboardLayout>
+      </ProtectedRoute>
     );
   }
 }
