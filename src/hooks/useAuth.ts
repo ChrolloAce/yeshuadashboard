@@ -46,6 +46,19 @@ export const useAuth = () => {
     }
   };
 
+  const loginWithGoogle = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      await authService.loginWithGoogle();
+    } catch (error: any) {
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async (): Promise<void> => {
     try {
       setLoading(true);
@@ -103,6 +116,7 @@ export const useAuth = () => {
     isCleaner: authService.isCleaner(),
     isCustomer: authService.isCustomer(),
     login,
+    loginWithGoogle,
     register,
     logout,
     updateProfile,

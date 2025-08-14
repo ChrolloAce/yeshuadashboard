@@ -2,6 +2,8 @@ import {
   User, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -46,8 +48,13 @@ export class AuthService {
   private currentUser: User | null = null;
   private userProfile: UserProfile | null = null;
   private listeners: Set<(user: User | null, profile: UserProfile | null) => void> = new Set();
+  private googleProvider: GoogleAuthProvider;
 
   private constructor() {
+    // Initialize Google provider
+    this.googleProvider = new GoogleAuthProvider();
+    this.googleProvider.addScope('email');
+    this.googleProvider.addScope('profile');
     // Listen to auth state changes
     onAuthStateChanged(auth, async (user) => {
       this.currentUser = user;
@@ -101,6 +108,41 @@ export class AuthService {
         throw new Error('User profile not found');
       }
       
+      return this.userProfile;
+    } catch (error: any) {
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+
+  public async loginWithGoogle(): Promise<UserProfile> {
+    try {
+      const result = await signInWithPopup(auth, this.googleProvider);
+      const user = result.user;
+
+      // Check if user profile exists
+      await this.loadUserProfile(user.uid);
+
+      // If no profile exists, create one with default role
+      if (!this.userProfile) {
+        const names = (user.displayName || '').split(' ');
+        const firstName = names[0] || '';
+        const lastName = names.slice(1).join(' ') || '';
+
+        const userProfile: UserProfile = {
+          uid: user.uid,
+          email: user.email || '',
+          firstName,
+          lastName,
+          role: 'customer', // Default role for Google sign-ups
+          avatar: user.photoURL || undefined,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        await setDoc(doc(db, 'users', user.uid), userProfile);
+        this.userProfile = userProfile;
+      }
+
       return this.userProfile;
     } catch (error: any) {
       throw new Error(this.getAuthErrorMessage(error.code));
