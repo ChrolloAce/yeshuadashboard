@@ -107,7 +107,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
       }
 
       setFormData({ ...formData, [field]: value });
-      setErrors({ ...errors, [field]: undefined });
+      const newErrors = { ...errors };
+      delete newErrors[field];
+      setErrors(newErrors);
     };
 
   return (
