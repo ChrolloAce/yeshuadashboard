@@ -23,6 +23,9 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// Configure auth settings
+auth.useDeviceLanguage();
+
 // Initialize Analytics (only in browser environment)
 let analytics: any = null;
 if (typeof window !== 'undefined') {

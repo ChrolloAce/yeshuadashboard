@@ -118,7 +118,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         <div>
           <div className="mx-auto h-20 w-20 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100">
             <img 
-              src="/yc (1).png" 
+              src="/logo.png" 
               alt="Yeshua Cleaning" 
               className="h-16 w-16 object-contain"
             />

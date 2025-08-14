@@ -55,13 +55,21 @@ export class AuthService {
     this.googleProvider = new GoogleAuthProvider();
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
+    
+    // Configure for better popup handling
+    this.googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
     // Listen to auth state changes
     onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? `User: ${user.uid}` : 'No user');
       this.currentUser = user;
       
       if (user) {
         // Load user profile from Firestore
+        console.log('Loading user profile...');
         await this.loadUserProfile(user.uid);
+        console.log('User profile loaded:', this.userProfile);
       } else {
         this.userProfile = null;
       }
@@ -116,14 +124,17 @@ export class AuthService {
 
   public async loginWithGoogle(): Promise<UserProfile> {
     try {
+      console.log('Starting Google sign-in...');
       const result = await signInWithPopup(auth, this.googleProvider);
       const user = result.user;
+      console.log('Google sign-in successful:', user.uid);
 
       // Check if user profile exists
       await this.loadUserProfile(user.uid);
 
       // If no profile exists, create one with default role
       if (!this.userProfile) {
+        console.log('Creating new user profile...');
         const names = (user.displayName || '').split(' ');
         const firstName = names[0] || '';
         const lastName = names.slice(1).join(' ') || '';
@@ -141,10 +152,20 @@ export class AuthService {
 
         await setDoc(doc(db, 'users', user.uid), userProfile);
         this.userProfile = userProfile;
+        console.log('User profile created successfully');
+      } else {
+        console.log('Existing user profile loaded');
       }
 
       return this.userProfile;
     } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      
+      // Handle popup blocked or closed
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Google sign-in was blocked. Please allow popups and try again.');
+      }
+      
       throw new Error(this.getAuthErrorMessage(error.code));
     }
   }
