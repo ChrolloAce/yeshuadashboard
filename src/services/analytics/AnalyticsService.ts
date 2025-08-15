@@ -297,11 +297,13 @@ export class AnalyticsService {
     return result;
   }
 
-  public getMonthlyMetrics(): MonthlyMetrics[] {
+  public getMonthlyMetrics(filters?: AnalyticsFilters): MonthlyMetrics[] {
+    const filteredJobs = this.filterJobsByTime(this.jobs, filters);
+    const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
     const monthlyMap = new Map<string, MonthlyMetrics>();
 
     // Process jobs by month
-    this.jobs.forEach(job => {
+    filteredJobs.forEach(job => {
       const date = job.createdAt;
       const monthKey = format(date, 'yyyy-MM');
       const monthName = format(date, 'MMM yyyy');
@@ -337,7 +339,7 @@ export class AnalyticsService {
     });
 
     // Process quotes by month
-    this.quotes.forEach(quote => {
+    filteredQuotes.forEach(quote => {
       const date = quote.createdAt;
       const monthKey = format(date, 'yyyy-MM');
       const monthName = format(date, 'MMM yyyy');

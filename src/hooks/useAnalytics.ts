@@ -47,7 +47,7 @@ export const useAnalytics = (): UseAnalyticsReturn => {
       // Get all analytics data
       const metricsData = analyticsService.getMetrics(filters);
       const timeSeriesDataResult = analyticsService.getTimeSeriesData(filters);
-      const monthlyMetricsResult = analyticsService.getMonthlyMetrics();
+      const monthlyMetricsResult = analyticsService.getMonthlyMetrics(filters);
       const revenueBreakdownResult = analyticsService.getRevenueBreakdown(filters);
 
       console.log('Analytics data loaded:', {
