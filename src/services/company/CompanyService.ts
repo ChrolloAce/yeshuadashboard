@@ -69,11 +69,14 @@ export class CompanyService {
         updatedAt: new Date()
       };
 
-      await setDoc(doc(db, COLLECTIONS.COMPANIES, companyId), {
+      // Filter out undefined values for Firestore
+      const firestoreData = this.filterUndefinedValues({
         ...company,
         createdAt: Timestamp.fromDate(company.createdAt),
         updatedAt: Timestamp.fromDate(company.updatedAt)
       });
+
+      await setDoc(doc(db, COLLECTIONS.COMPANIES, companyId), firestoreData);
 
       return company;
     } catch (error) {
@@ -264,5 +267,25 @@ export class CompanyService {
       console.error('Error getting company cleaners:', error);
       throw error;
     }
+  }
+
+  /**
+   * Filter out undefined values from an object for Firestore compatibility
+   */
+  private filterUndefinedValues(obj: any): any {
+    const filtered: any = {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date) && !(value as any)?.toDate) {
+          // Recursively filter nested objects, but skip Firestore Timestamps
+          filtered[key] = this.filterUndefinedValues(value);
+        } else {
+          filtered[key] = value;
+        }
+      }
+    }
+    
+    return filtered;
   }
 }
