@@ -15,13 +15,11 @@ import { startOfWeek, startOfMonth, startOfQuarter, startOfYear, format, subDays
 
 export class AnalyticsService {
   private static instance: AnalyticsService;
-  private jobs: Job[] = [];
-  private quotes: Quote[] = [];
-  private listeners: Array<() => void> = [];
+  private companyJobs: Map<string, Job[]> = new Map();
+  private companyQuotes: Map<string, Quote[]> = new Map();
+  private listeners: Map<string, Array<() => void>> = new Map();
 
-  private constructor() {
-    this.initializeListeners();
-  }
+  private constructor() {}
 
   public static getInstance(): AnalyticsService {
     if (!AnalyticsService.instance) {
@@ -30,11 +28,21 @@ export class AnalyticsService {
     return AnalyticsService.instance;
   }
 
-  private initializeListeners(): void {
-    // Listen to jobs collection
-    const jobsQuery = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
+  private initializeListeners(companyId: string): void {
+    if (this.listeners.has(companyId)) {
+      return; // Already initialized for this company
+    }
+
+    const companyListeners: Array<() => void> = [];
+
+    // Listen to jobs collection for this company
+    const jobsQuery = query(
+      collection(db, 'jobs'), 
+      where('companyId', '==', companyId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
-      this.jobs = snapshot.docs.map(doc => {
+      const jobs = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           ...data,
@@ -47,25 +55,44 @@ export class AnalyticsService {
           }
         } as unknown as Job;
       });
-      this.notifyListeners();
+      this.companyJobs.set(companyId, jobs);
+      this.notifyListeners(companyId);
     });
 
-    // Listen to quotes collection
-    const quotesQuery = query(collection(db, 'quotes'), orderBy('createdAt', 'desc'));
+    // Listen to quotes collection for this company
+    const quotesQuery = query(
+      collection(db, 'quotes'), 
+      where('companyId', '==', companyId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribeQuotes = onSnapshot(quotesQuery, (snapshot) => {
-      this.quotes = snapshot.docs.map(doc => {
+      const quotes = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           ...data,
           id: doc.id,
           createdAt: this.convertToDate(data.createdAt),
-          updatedAt: this.convertToDate(data.updatedAt)
+          updatedAt: this.convertToDate(data.updatedAt),
+          schedule: {
+            ...data.schedule,
+            date: this.convertToDate(data.schedule?.date)
+          }
         } as unknown as Quote;
       });
-      this.notifyListeners();
+      this.companyQuotes.set(companyId, quotes);
+      this.notifyListeners(companyId);
     });
 
-    this.listeners.push(unsubscribeJobs, unsubscribeQuotes);
+    companyListeners.push(unsubscribeJobs, unsubscribeQuotes);
+    this.listeners.set(companyId, companyListeners);
+  }
+
+  private getCompanyJobs(companyId: string): Job[] {
+    return this.companyJobs.get(companyId) || [];
+  }
+
+  private getCompanyQuotes(companyId: string): Quote[] {
+    return this.companyQuotes.get(companyId) || [];
   }
 
   private convertToDate(dateValue: any): Date {
@@ -75,315 +102,264 @@ export class AnalyticsService {
       return dateValue.toDate();
     }
     
+    if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate();
+    }
+    
     if (dateValue instanceof Date) {
       return dateValue;
     }
     
-    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
-      const date = new Date(dateValue);
-      return isNaN(date.getTime()) ? new Date() : date;
+    if (typeof dateValue === 'string') {
+      return new Date(dateValue);
+    }
+    
+    if (typeof dateValue === 'number') {
+      return new Date(dateValue);
     }
     
     return new Date();
   }
 
-  private notifyListeners(): void {
-    console.log('📊 Analytics data updated:', {
-      jobsCount: this.jobs.length,
-      quotesCount: this.quotes.length,
-      latestJob: this.jobs[0]?.id,
-      latestQuote: this.quotes[0]?.id
-    });
-    
-    // Trigger a custom event that components can listen to
+  private notifyListeners(companyId: string): void {
+    // Dispatch custom event for real-time updates
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('analytics-data-updated'));
+      window.dispatchEvent(new CustomEvent('analytics-data-updated', {
+        detail: { companyId }
+      }));
     }
   }
 
-  public getMetrics(filters?: AnalyticsFilters): AnalyticsMetrics {
-    const filteredJobs = this.filterJobsByTime(this.jobs, filters);
-    const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
-
-    const approvedJobs = filteredJobs.filter(job => 
-      job.status === 'assigned' || 
-      job.status === 'in-progress' || 
-      job.status === 'completed'
-    );
-
-    const paidJobs = filteredJobs.filter(job => 
-      job.payment.status === 'paid' || job.status === 'completed'
-    );
-
-    const completedJobs = filteredJobs.filter(job => job.status === 'completed');
-    const pendingJobs = filteredJobs.filter(job => job.status === 'pending');
-
-    const totalRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
-    const averageJobValue = paidJobs.length > 0 ? totalRevenue / paidJobs.length : 0;
-    const conversionRate = filteredQuotes.length > 0 ? (approvedJobs.length / filteredQuotes.length) * 100 : 0;
+  public async getMetrics(companyId: string, filters: AnalyticsFilters = {}): Promise<AnalyticsMetrics> {
+    this.initializeListeners(companyId);
     
-    // Calculate cleaner payments (assuming 70% goes to cleaners, 30% profit)
-    const totalPaidToCleaners = totalRevenue * 0.7;
-    const totalProfit = totalRevenue * 0.3;
-    
-    // Appointments booked = jobs that are assigned or in progress
+    const jobs = this.getCompanyJobs(companyId);
+    const quotes = this.getCompanyQuotes(companyId);
+
+    // Filter by date range if specified
+    const filteredJobs = this.filterJobsByDateRange(jobs, filters);
+    const filteredQuotes = this.filterQuotesByDateRange(quotes, filters);
+
+    // Calculate metrics
+    const totalRevenue = filteredJobs
+      .filter(job => job.payment.status === 'paid')
+      .reduce((sum, job) => sum + job.pricing.finalPrice, 0);
+
+    const totalPaidToCleaners = totalRevenue * 0.7; // 70% to cleaners
+    const totalProfit = totalRevenue * 0.3; // 30% profit
+
+    const totalJobs = filteredJobs.length;
+    const averageJobValue = totalJobs > 0 ? totalRevenue / totalJobs : 0;
+
+    const totalQuotes = filteredQuotes.length;
     const appointmentsBooked = filteredJobs.filter(job => 
-      job.status === 'assigned' || job.status === 'in-progress'
+      ['assigned', 'in-progress'].includes(job.status)
     ).length;
+
+    // Calculate additional metrics to match the interface
+    const approvedJobs = filteredJobs.filter(job => 
+      ['assigned', 'in-progress', 'completed'].includes(job.status)
+    ).length;
+    const paidJobs = filteredJobs.filter(job => job.payment.status === 'paid').length;
+    const pendingJobs = filteredJobs.filter(job => job.status === 'pending').length;
+    const completedJobs = filteredJobs.filter(job => job.status === 'completed').length;
+    const conversionRate = totalQuotes > 0 ? approvedJobs / totalQuotes : 0;
 
     return {
       totalRevenue,
-      totalJobs: filteredJobs.length,
-      totalQuotes: filteredQuotes.length,
-      approvedJobs: approvedJobs.length,
-      paidJobs: paidJobs.length,
-      pendingJobs: pendingJobs.length,
-      completedJobs: completedJobs.length,
+      totalPaidToCleaners,
+      totalProfit,
+      totalJobs,
+      totalQuotes,
+      approvedJobs,
+      paidJobs,
+      pendingJobs,
+      completedJobs,
       appointmentsBooked,
       averageJobValue,
-      conversionRate,
-      totalPaidToCleaners,
-      totalProfit
+      conversionRate
     };
   }
 
-  public getTimeSeriesData(filters?: AnalyticsFilters): TimeSeriesData[] {
-    const filteredJobs = this.filterJobsByTime(this.jobs, filters);
-    const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
+  public async getTimeSeriesData(companyId: string, filters: AnalyticsFilters = {}): Promise<TimeSeriesData[]> {
+    this.initializeListeners(companyId);
+    
+    const jobs = this.getCompanyJobs(companyId);
+    const quotes = this.getCompanyQuotes(companyId);
+    const filteredJobs = this.filterJobsByDateRange(jobs, filters);
+    const filteredQuotes = this.filterQuotesByDateRange(quotes, filters);
 
-    // Choose date format based on time filter
-    const getDateKey = (date: Date): string => {
-      switch (filters?.timeFilter) {
-        case 'day':
-          return format(date, 'yyyy-MM-dd HH:00'); // Group by hour for 24H view
-        case 'week':
-        case 'month':
-          return format(date, 'yyyy-MM-dd'); // Group by day
-        case 'quarter':
-        case 'year':
-          return format(date, 'yyyy-MM'); // Group by month
-        default:
-          return format(date, 'yyyy-MM-dd');
-      }
-    };
-
-    // Group data by date/time
-    const dataMap = new Map<string, TimeSeriesData>();
+    // Group jobs and quotes by time period based on filter
+    const timeSeriesMap = new Map<string, {
+      revenue: number;
+      jobs: number;
+      quotes: number;
+      approved: number;
+      completed: number;
+    }>();
 
     // Process jobs
     filteredJobs.forEach(job => {
-      const dateKey = getDateKey(job.createdAt);
-      
-      if (!dataMap.has(dateKey)) {
-        dataMap.set(dateKey, {
-          date: dateKey,
-          revenue: 0,
-          jobs: 0,
-          quotes: 0,
-          approved: 0,
-          completed: 0
-        });
+      const date = job.createdAt;
+      let key: string;
+
+      switch (filters.timeFilter) {
+        case TimeFilter.LAST_24H:
+          key = format(date, 'yyyy-MM-dd HH:00');
+          break;
+        case TimeFilter.LAST_7_DAYS:
+        case TimeFilter.LAST_30_DAYS:
+          key = format(date, 'yyyy-MM-dd');
+          break;
+        default:
+          key = format(date, 'yyyy-MM');
+          break;
       }
 
-      const data = dataMap.get(dateKey)!;
-      data.jobs += 1;
+      const existing = timeSeriesMap.get(key) || { revenue: 0, jobs: 0, quotes: 0, approved: 0, completed: 0 };
+      existing.jobs += 1;
       
-      if (job.payment.status === 'paid' || job.status === 'completed') {
-        data.revenue += job.pricing.finalPrice || 0;
+      if (job.payment.status === 'paid') {
+        existing.revenue += job.pricing.finalPrice;
       }
       
-      if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
-        data.approved += 1;
+      if (['assigned', 'in-progress', 'completed'].includes(job.status)) {
+        existing.approved += 1;
       }
       
       if (job.status === 'completed') {
-        data.completed += 1;
+        existing.completed += 1;
       }
+      
+      timeSeriesMap.set(key, existing);
     });
 
     // Process quotes
     filteredQuotes.forEach(quote => {
-      const dateKey = getDateKey(quote.createdAt);
-      
-      if (!dataMap.has(dateKey)) {
-        dataMap.set(dateKey, {
-          date: dateKey,
-          revenue: 0,
-          jobs: 0,
-          quotes: 0,
-          approved: 0,
-          completed: 0
-        });
-      }
-
-      const data = dataMap.get(dateKey)!;
-      data.quotes += 1;
-    });
-
-    const sortedData = Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-    
-    // Fill in missing time periods with 0 values
-    return this.fillMissingTimeSlots(sortedData, filters);
-  }
-
-  private fillMissingTimeSlots(data: TimeSeriesData[], filters?: AnalyticsFilters): TimeSeriesData[] {
-    if (data.length === 0) return data;
-
-    const timeFilter = filters?.timeFilter || 'month';
-    const result: TimeSeriesData[] = [];
-    
-    // Determine the time increment and format based on filter
-    let startDate: Date;
-    let endDate: Date = new Date();
-    let increment: (date: Date) => Date;
-    let formatKey: (date: Date) => string;
-
-    switch (timeFilter) {
-      case 'day':
-        startDate = subDays(endDate, 1);
-        increment = (date: Date) => new Date(date.getTime() + 60 * 60 * 1000); // Add 1 hour
-        formatKey = (date: Date) => format(date, 'yyyy-MM-dd HH:00');
-        break;
-      case 'week':
-        startDate = subWeeks(endDate, 1);
-        increment = (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
-        formatKey = (date: Date) => format(date, 'yyyy-MM-dd');
-        break;
-      case 'month':
-        startDate = subMonths(endDate, 1);
-        increment = (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
-        formatKey = (date: Date) => format(date, 'yyyy-MM-dd');
-        break;
-      case 'quarter':
-        startDate = subQuarters(endDate, 1);
-        increment = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 1); // Add 1 month
-        formatKey = (date: Date) => format(date, 'yyyy-MM');
-        break;
-      case 'year':
-        startDate = subYears(endDate, 1);
-        increment = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 1); // Add 1 month
-        formatKey = (date: Date) => format(date, 'yyyy-MM');
-        break;
-      default:
-        return data; // Return as-is for 'all' filter
-    }
-
-    // Create a map of existing data for quick lookup
-    const dataMap = new Map<string, TimeSeriesData>();
-    data.forEach(item => dataMap.set(item.date, item));
-
-    // Fill in all time slots
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      const dateKey = formatKey(currentDate);
-      
-      if (dataMap.has(dateKey)) {
-        result.push(dataMap.get(dateKey)!);
-      } else {
-        // Add missing slot with 0 values
-        result.push({
-          date: dateKey,
-          revenue: 0,
-          jobs: 0,
-          quotes: 0,
-          approved: 0,
-          completed: 0
-        });
-      }
-      
-      currentDate = increment(currentDate);
-    }
-
-    return result;
-  }
-
-  public getMonthlyMetrics(filters?: AnalyticsFilters): MonthlyMetrics[] {
-    const filteredJobs = this.filterJobsByTime(this.jobs, filters);
-    const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
-    const monthlyMap = new Map<string, MonthlyMetrics>();
-
-    // Process jobs by month
-    filteredJobs.forEach(job => {
-      const date = job.createdAt;
-      const monthKey = format(date, 'yyyy-MM');
-      const monthName = format(date, 'MMM yyyy');
-
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, {
-          month: monthName,
-          year: date.getFullYear(),
-          revenue: 0,
-          jobsCount: 0,
-          quotesCount: 0,
-          approvedCount: 0,
-          completedCount: 0,
-          paidCount: 0
-        });
-      }
-
-      const metrics = monthlyMap.get(monthKey)!;
-      metrics.jobsCount += 1;
-
-      if (job.payment.status === 'paid' || job.status === 'completed') {
-        metrics.revenue += job.pricing.finalPrice || 0;
-        metrics.paidCount += 1;
-      }
-
-      if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
-        metrics.approvedCount += 1;
-      }
-
-      if (job.status === 'completed') {
-        metrics.completedCount += 1;
-      }
-    });
-
-    // Process quotes by month
-    filteredQuotes.forEach(quote => {
       const date = quote.createdAt;
-      const monthKey = format(date, 'yyyy-MM');
-      const monthName = format(date, 'MMM yyyy');
+      let key: string;
 
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, {
-          month: monthName,
-          year: date.getFullYear(),
-          revenue: 0,
-          jobsCount: 0,
-          quotesCount: 0,
-          approvedCount: 0,
-          completedCount: 0,
-          paidCount: 0
-        });
+      switch (filters.timeFilter) {
+        case TimeFilter.LAST_24H:
+          key = format(date, 'yyyy-MM-dd HH:00');
+          break;
+        case TimeFilter.LAST_7_DAYS:
+        case TimeFilter.LAST_30_DAYS:
+          key = format(date, 'yyyy-MM-dd');
+          break;
+        default:
+          key = format(date, 'yyyy-MM');
+          break;
       }
 
-      const metrics = monthlyMap.get(monthKey)!;
-      metrics.quotesCount += 1;
+      const existing = timeSeriesMap.get(key) || { revenue: 0, jobs: 0, quotes: 0, approved: 0, completed: 0 };
+      existing.quotes += 1;
+      timeSeriesMap.set(key, existing);
     });
 
-    return Array.from(monthlyMap.values()).sort((a, b) => a.year - b.year || a.month.localeCompare(b.month));
+    // Convert to array and fill missing time slots
+    const timeSeriesArray = Array.from(timeSeriesMap.entries()).map(([date, data]) => ({
+      date,
+      revenue: data.revenue,
+      jobs: data.jobs,
+      quotes: data.quotes,
+      approved: data.approved,
+      completed: data.completed
+    }));
+
+    return this.fillMissingTimeSlots(timeSeriesArray, filters);
   }
 
-  public getRevenueBreakdown(filters?: AnalyticsFilters): RevenueBreakdown {
-    const filteredJobs = this.filterJobsByTime(this.jobs, filters);
+  public async getMonthlyMetrics(companyId: string, filters: AnalyticsFilters = {}): Promise<MonthlyMetrics[]> {
+    this.initializeListeners(companyId);
     
-    const paidJobs = filteredJobs.filter(job => 
-      job.payment.status === 'paid' || job.status === 'completed'
-    );
-    
-    const pendingJobs = filteredJobs.filter(job => 
-      job.status === 'pending' || job.status === 'assigned' || job.status === 'in-progress'
-    );
+    const jobs = this.getCompanyJobs(companyId);
+    const quotes = this.getCompanyQuotes(companyId);
+    const filteredJobs = this.filterJobsByDateRange(jobs, filters);
+    const filteredQuotes = this.filterQuotesByDateRange(quotes, filters);
 
-    const paidRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
-    const pendingRevenue = pendingJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
+    const monthlyMap = new Map<string, {
+      revenue: number;
+      jobsCount: number;
+      quotesCount: number;
+      approvedCount: number;
+      completedCount: number;
+      paidCount: number;
+    }>();
+
+    // Process jobs
+    filteredJobs.forEach(job => {
+      const monthKey = format(job.createdAt, 'yyyy-MM');
+      const existing = monthlyMap.get(monthKey) || { 
+        revenue: 0, 
+        jobsCount: 0, 
+        quotesCount: 0, 
+        approvedCount: 0, 
+        completedCount: 0, 
+        paidCount: 0 
+      };
+      
+      existing.jobsCount += 1;
+      
+      if (job.payment.status === 'paid') {
+        existing.revenue += job.pricing.finalPrice;
+        existing.paidCount += 1;
+      }
+      
+      if (['assigned', 'in-progress', 'completed'].includes(job.status)) {
+        existing.approvedCount += 1;
+      }
+      
+      if (job.status === 'completed') {
+        existing.completedCount += 1;
+      }
+      
+      monthlyMap.set(monthKey, existing);
+    });
+
+    // Process quotes
+    filteredQuotes.forEach(quote => {
+      const monthKey = format(quote.createdAt, 'yyyy-MM');
+      const existing = monthlyMap.get(monthKey) || { 
+        revenue: 0, 
+        jobsCount: 0, 
+        quotesCount: 0, 
+        approvedCount: 0, 
+        completedCount: 0, 
+        paidCount: 0 
+      };
+      
+      existing.quotesCount += 1;
+      monthlyMap.set(monthKey, existing);
+    });
+
+    return Array.from(monthlyMap.entries()).map(([monthStr, metrics]) => ({
+      month: monthStr,
+      year: parseInt(monthStr.split('-')[0]),
+      revenue: metrics.revenue,
+      jobsCount: metrics.jobsCount,
+      quotesCount: metrics.quotesCount,
+      approvedCount: metrics.approvedCount,
+      completedCount: metrics.completedCount,
+      paidCount: metrics.paidCount
+    }));
+  }
+
+  public async getRevenueBreakdown(companyId: string, filters: AnalyticsFilters = {}): Promise<RevenueBreakdown> {
+    this.initializeListeners(companyId);
+    
+    const jobs = this.getCompanyJobs(companyId);
+    const filteredJobs = this.filterJobsByDateRange(jobs, filters);
+
+    const paidJobs = filteredJobs.filter(job => job.payment.status === 'paid');
+    const pendingJobs = filteredJobs.filter(job => job.payment.status === 'pending');
+    
+    const paidRevenue = paidJobs.reduce((sum, job) => sum + job.pricing.finalPrice, 0);
+    const pendingRevenue = pendingJobs.reduce((sum, job) => sum + job.pricing.finalPrice, 0);
     const totalRevenue = paidRevenue + pendingRevenue;
 
-    const totalPaidToCleaners = paidRevenue * 0.7;
-    const totalProfit = paidRevenue * 0.3;
-
-    const jobValues = filteredJobs.map(job => job.pricing.finalPrice || 0).filter(value => value > 0);
-    const averageJobValue = jobValues.length > 0 ? jobValues.reduce((sum, value) => sum + value, 0) / jobValues.length : 0;
+    const jobValues = paidJobs.map(job => job.pricing.finalPrice);
+    const averageJobValue = jobValues.length > 0 ? jobValues.reduce((sum, val) => sum + val, 0) / jobValues.length : 0;
     const highestJobValue = jobValues.length > 0 ? Math.max(...jobValues) : 0;
     const lowestJobValue = jobValues.length > 0 ? Math.min(...jobValues) : 0;
 
@@ -391,16 +367,16 @@ export class AnalyticsService {
       totalRevenue,
       paidRevenue,
       pendingRevenue,
-      totalPaidToCleaners,
-      totalProfit,
+      totalPaidToCleaners: paidRevenue * 0.7,
+      totalProfit: paidRevenue * 0.3,
       averageJobValue,
       highestJobValue,
       lowestJobValue
     };
   }
 
-  private filterJobsByTime(jobs: Job[], filters?: AnalyticsFilters): Job[] {
-    if (!filters?.timeFilter || filters.timeFilter === 'all') {
+  private filterJobsByDateRange(jobs: Job[], filters: AnalyticsFilters): Job[] {
+    if (!filters.timeFilter || filters.timeFilter === TimeFilter.ALL_TIME) {
       return jobs;
     }
 
@@ -408,19 +384,19 @@ export class AnalyticsService {
     let startDate: Date;
 
     switch (filters.timeFilter) {
-      case 'day':
+      case TimeFilter.LAST_24H:
         startDate = subDays(now, 1);
         break;
-      case 'week':
+      case TimeFilter.LAST_7_DAYS:
         startDate = subWeeks(now, 1);
         break;
-      case 'month':
+      case TimeFilter.LAST_30_DAYS:
         startDate = subMonths(now, 1);
         break;
-      case 'quarter':
-        startDate = subQuarters(now, 1);
+      case TimeFilter.LAST_3_MONTHS:
+        startDate = subMonths(now, 3);
         break;
-      case 'year':
+      case TimeFilter.LAST_YEAR:
         startDate = subYears(now, 1);
         break;
       default:
@@ -430,8 +406,8 @@ export class AnalyticsService {
     return jobs.filter(job => job.createdAt >= startDate);
   }
 
-  private filterQuotesByTime(quotes: Quote[], filters?: AnalyticsFilters): Quote[] {
-    if (!filters?.timeFilter || filters.timeFilter === 'all') {
+  private filterQuotesByDateRange(quotes: Quote[], filters: AnalyticsFilters): Quote[] {
+    if (!filters.timeFilter || filters.timeFilter === TimeFilter.ALL_TIME) {
       return quotes;
     }
 
@@ -439,19 +415,19 @@ export class AnalyticsService {
     let startDate: Date;
 
     switch (filters.timeFilter) {
-      case 'day':
+      case TimeFilter.LAST_24H:
         startDate = subDays(now, 1);
         break;
-      case 'week':
+      case TimeFilter.LAST_7_DAYS:
         startDate = subWeeks(now, 1);
         break;
-      case 'month':
+      case TimeFilter.LAST_30_DAYS:
         startDate = subMonths(now, 1);
         break;
-      case 'quarter':
-        startDate = subQuarters(now, 1);
+      case TimeFilter.LAST_3_MONTHS:
+        startDate = subMonths(now, 3);
         break;
-      case 'year':
+      case TimeFilter.LAST_YEAR:
         startDate = subYears(now, 1);
         break;
       default:
@@ -461,8 +437,80 @@ export class AnalyticsService {
     return quotes.filter(quote => quote.createdAt >= startDate);
   }
 
-  public destroy(): void {
-    this.listeners.forEach(unsubscribe => unsubscribe());
-    this.listeners = [];
+  private fillMissingTimeSlots(data: TimeSeriesData[], filters: AnalyticsFilters): TimeSeriesData[] {
+    if (!filters.timeFilter) return data;
+
+    const now = new Date();
+    const filledData: TimeSeriesData[] = [];
+    let current: Date;
+    let end: Date = now;
+
+    switch (filters.timeFilter) {
+      case TimeFilter.LAST_24H:
+        current = subDays(now, 1);
+        while (current <= end) {
+          const key = format(current, 'yyyy-MM-dd HH:00');
+          const existingData = data.find(d => d.date === key);
+          filledData.push({
+            date: key,
+            revenue: existingData?.revenue || 0,
+            jobs: existingData?.jobs || 0,
+            quotes: existingData?.quotes || 0,
+            approved: existingData?.approved || 0,
+            completed: existingData?.completed || 0
+          });
+          current = new Date(current.getTime() + 60 * 60 * 1000); // Add 1 hour
+        }
+        break;
+
+      case TimeFilter.LAST_7_DAYS:
+        current = subDays(now, 7);
+        while (current <= end) {
+          const key = format(current, 'yyyy-MM-dd');
+          const existingData = data.find(d => d.date === key);
+          filledData.push({
+            date: key,
+            revenue: existingData?.revenue || 0,
+            jobs: existingData?.jobs || 0,
+            quotes: existingData?.quotes || 0,
+            approved: existingData?.approved || 0,
+            completed: existingData?.completed || 0
+          });
+          current = subDays(current, -1); // Add 1 day
+        }
+        break;
+
+      case TimeFilter.LAST_30_DAYS:
+        current = subDays(now, 30);
+        while (current <= end) {
+          const key = format(current, 'yyyy-MM-dd');
+          const existingData = data.find(d => d.date === key);
+          filledData.push({
+            date: key,
+            revenue: existingData?.revenue || 0,
+            jobs: existingData?.jobs || 0,
+            quotes: existingData?.quotes || 0,
+            approved: existingData?.approved || 0,
+            completed: existingData?.completed || 0
+          });
+          current = subDays(current, -1); // Add 1 day
+        }
+        break;
+
+      default:
+        return data;
+    }
+
+    return filledData;
+  }
+
+  public cleanup(companyId: string): void {
+    const companyListeners = this.listeners.get(companyId);
+    if (companyListeners) {
+      companyListeners.forEach(unsubscribe => unsubscribe());
+      this.listeners.delete(companyId);
+    }
+    this.companyJobs.delete(companyId);
+    this.companyQuotes.delete(companyId);
   }
 }

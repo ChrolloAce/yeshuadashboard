@@ -132,7 +132,7 @@ export class JobService {
   }
 
   // Get all jobs with optional filtering
-  public async getJobs(filters?: {
+  public async getJobs(companyId: string, filters?: {
     status?: JobStatus;
     clientId?: string;
     assignedTo?: string;
@@ -143,6 +143,7 @@ export class JobService {
     try {
       let q = query(
         collection(db, COLLECTIONS.JOBS),
+        where('companyId', '==', companyId),
         orderBy('schedule.date', 'desc')
       );
 
@@ -376,6 +377,7 @@ export class JobService {
 
   // Subscribe to jobs changes
   public subscribeToJobs(
+    companyId: string,
     callback: (jobs: Job[]) => void,
     filters?: {
       status?: JobStatus;
@@ -386,6 +388,7 @@ export class JobService {
   ): () => void {
     let q = query(
       collection(db, COLLECTIONS.JOBS),
+      where('companyId', '==', companyId),
       orderBy('schedule.date', 'desc')
     );
 
@@ -416,7 +419,7 @@ export class JobService {
   }
 
   // Get job statistics
-  public async getJobStats(): Promise<{
+  public async getJobStats(companyId: string): Promise<{
     totalJobs: number;
     completedJobs: number;
     pendingJobs: number;
@@ -425,7 +428,7 @@ export class JobService {
     completionRate: number;
   }> {
     try {
-      const jobs = await this.getJobs();
+      const jobs = await this.getJobs(companyId);
       
       const totalJobs = jobs.length;
       const completedJobs = jobs.filter(job => job.status === 'completed').length;
@@ -455,7 +458,14 @@ export class JobService {
   // Private helper methods
   private async updateClientJobStats(clientId: string): Promise<void> {
     try {
-      const clientJobs = await this.getJobs({ clientId });
+      // Get client to find their companyId
+      const client = await this.clientService.getClient(clientId);
+      if (!client) {
+        console.warn(`Client ${clientId} not found, skipping stats update`);
+        return;
+      }
+
+      const clientJobs = await this.getJobs(client.companyId, { clientId });
       const totalJobs = clientJobs.length;
       const totalSpent = clientJobs
         .filter(job => job.payment.status === 'paid')

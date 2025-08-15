@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AnalyticsService } from '@/services/analytics/AnalyticsService';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   AnalyticsMetrics, 
   TimeSeriesData, 
@@ -32,9 +33,10 @@ export const useAnalytics = (): UseAnalyticsReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<AnalyticsFilters>({
-    timeFilter: 'month'
+    timeFilter: TimeFilter.LAST_30_DAYS
   });
 
+  const { userProfile } = useAuth();
   const analyticsService = AnalyticsService.getInstance();
 
   const loadAnalytics = useCallback(async () => {
@@ -42,32 +44,43 @@ export const useAnalytics = (): UseAnalyticsReturn => {
       setIsLoading(true);
       setError(null);
 
+      if (!userProfile?.companyId) {
+        console.warn('No company ID available, cannot load analytics');
+        setMetrics(null);
+        setTimeSeriesData([]);
+        setMonthlyMetrics([]);
+        setRevenueBreakdown(null);
+        return;
+      }
+
       console.log('Loading analytics with filters:', filters);
 
-      // Get all analytics data
-      const metricsData = analyticsService.getMetrics(filters);
-      const timeSeriesDataResult = analyticsService.getTimeSeriesData(filters);
-      const monthlyMetricsResult = analyticsService.getMonthlyMetrics(filters);
-      const revenueBreakdownResult = analyticsService.getRevenueBreakdown(filters);
+      // Get all analytics data for the company
+      const [metrics, timeSeries, monthly, breakdown] = await Promise.all([
+        analyticsService.getMetrics(userProfile.companyId, filters),
+        analyticsService.getTimeSeriesData(userProfile.companyId, filters),
+        analyticsService.getMonthlyMetrics(userProfile.companyId, filters),
+        analyticsService.getRevenueBreakdown(userProfile.companyId, filters)
+      ]);
 
       console.log('Analytics data loaded:', {
-        metrics: metricsData,
-        timeSeriesCount: timeSeriesDataResult.length,
-        monthlyCount: monthlyMetricsResult.length,
-        revenueBreakdown: revenueBreakdownResult
+        metrics,
+        timeSeriesCount: timeSeries.length,
+        monthlyCount: monthly.length,
+        revenueBreakdown: breakdown
       });
 
-      setMetrics(metricsData);
-      setTimeSeriesData(timeSeriesDataResult);
-      setMonthlyMetrics(monthlyMetricsResult);
-      setRevenueBreakdown(revenueBreakdownResult);
+      setMetrics(metrics);
+      setTimeSeriesData(timeSeries);
+      setMonthlyMetrics(monthly);
+      setRevenueBreakdown(breakdown);
     } catch (err) {
       console.error('Error loading analytics:', err);
       setError(err instanceof Error ? err.message : 'Failed to load analytics');
     } finally {
       setIsLoading(false);
     }
-  }, [filters, analyticsService]);
+  }, [filters, analyticsService, userProfile?.companyId]);
 
   const setTimeFilter = useCallback((filter: TimeFilter) => {
     setFilters(prev => ({
@@ -81,7 +94,7 @@ export const useAnalytics = (): UseAnalyticsReturn => {
   const setCustomDateRange = useCallback((startDate: Date, endDate: Date) => {
     setFilters(prev => ({
       ...prev,
-      timeFilter: 'all',
+      timeFilter: TimeFilter.ALL_TIME,
       startDate,
       endDate
     }));

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ClientService } from '@/services/database/ClientService';
 import { Client } from '@/types/database';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UseFirebaseClientsOptions {
   realTime?: boolean;
@@ -22,12 +23,20 @@ export const useFirebaseClients = (options: UseFirebaseClientsOptions = {}): Use
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { userProfile } = useAuth();
   const clientService = ClientService.getInstance();
 
   const fetchClients = async () => {
     try {
       setError(null);
-      const fetchedClients = await clientService.getClients({
+      
+      if (!userProfile?.companyId) {
+        console.warn('No company ID available, cannot fetch clients');
+        setClients([]);
+        return;
+      }
+
+      const fetchedClients = await clientService.getClients(userProfile.companyId, {
         limit: options.limit,
         searchTerm: options.searchTerm
       });
@@ -46,8 +55,10 @@ export const useFirebaseClients = (options: UseFirebaseClientsOptions = {}): Use
   };
 
   useEffect(() => {
-    fetchClients();
-  }, [options.searchTerm, options.limit]);
+    if (userProfile) {
+      fetchClients();
+    }
+  }, [options.searchTerm, options.limit, userProfile?.companyId]);
 
   // Set up real-time listener if requested
   useEffect(() => {

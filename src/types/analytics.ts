@@ -33,10 +33,17 @@ export interface MonthlyMetrics {
   paidCount: number;
 }
 
-export type TimeFilter = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
+export enum TimeFilter {
+  LAST_24H = 'day',
+  LAST_7_DAYS = 'week',
+  LAST_30_DAYS = 'month',
+  LAST_3_MONTHS = 'quarter',
+  LAST_YEAR = 'year',
+  ALL_TIME = 'all'
+}
 
 export interface AnalyticsFilters {
-  timeFilter: TimeFilter;
+  timeFilter?: TimeFilter;
   startDate?: Date;
   endDate?: Date;
 }

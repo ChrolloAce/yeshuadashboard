@@ -129,14 +129,15 @@ export class ClientService {
     }
   }
 
-  // Get all clients with optional filtering
-  public async getClients(filters?: {
+  // Get all clients for a specific company with optional filtering
+  public async getClients(companyId: string, filters?: {
     limit?: number;
     searchTerm?: string;
   }): Promise<Client[]> {
     try {
       let q = query(
         collection(db, COLLECTIONS.CLIENTS),
+        where('companyId', '==', companyId),
         orderBy('createdAt', 'desc')
       );
 
@@ -246,6 +247,7 @@ export class ClientService {
 
   // Subscribe to clients changes
   public subscribeToClients(
+    companyId: string,
     callback: (clients: Client[]) => void,
     filters?: {
       limit?: number;
@@ -253,6 +255,7 @@ export class ClientService {
   ): () => void {
     let q = query(
       collection(db, COLLECTIONS.CLIENTS),
+      where('companyId', '==', companyId),
       orderBy('createdAt', 'desc')
     );
 
@@ -271,14 +274,14 @@ export class ClientService {
   }
 
   // Get client statistics
-  public async getClientStats(): Promise<{
+  public async getClientStats(companyId: string): Promise<{
     totalClients: number;
     newClientsThisMonth: number;
     averageJobValue: number;
     topClients: Client[];
   }> {
     try {
-      const clients = await this.getClients();
+      const clients = await this.getClients(companyId);
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 

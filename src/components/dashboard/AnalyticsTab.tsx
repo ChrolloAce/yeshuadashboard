@@ -26,12 +26,12 @@ export const AnalyticsTab: React.FC = () => {
 
 
   const timeFilterOptions: { value: TimeFilter; label: 'Last 24H' | string }[] = [
-    { value: 'day', label: 'Last 24H' },
-    { value: 'week', label: 'Last 7 Days' },
-    { value: 'month', label: 'Last 30 Days' },
-    { value: 'quarter', label: 'Last 3 Months' },
-    { value: 'year', label: 'Last Year' },
-    { value: 'all', label: 'All Time' },
+    { value: TimeFilter.LAST_24H, label: 'Last 24H' },
+    { value: TimeFilter.LAST_7_DAYS, label: 'Last 7 Days' },
+    { value: TimeFilter.LAST_30_DAYS, label: 'Last 30 Days' },
+    { value: TimeFilter.LAST_3_MONTHS, label: 'Last 3 Months' },
+    { value: TimeFilter.LAST_YEAR, label: 'Last Year' },
+    { value: TimeFilter.ALL_TIME, label: 'All Time' },
   ];
 
   const formatCurrency = (amount: number) => {

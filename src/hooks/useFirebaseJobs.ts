@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { JobService } from '@/services/database/JobService';
 import { Job, JobStatus } from '@/types/database';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UseFirebaseJobsOptions {
   status?: JobStatus;
@@ -27,13 +28,21 @@ export const useFirebaseJobs = (options: UseFirebaseJobsOptions = {}): UseFireba
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { userProfile } = useAuth();
   const jobService = JobService.getInstance();
 
   const loadJobs = async () => {
     try {
       setLoading(true);
       setError(null);
-      const fetchedJobs = await jobService.getJobs({
+      
+      if (!userProfile?.companyId) {
+        console.warn('No company ID available, cannot fetch jobs');
+        setJobs([]);
+        return;
+      }
+
+      const fetchedJobs = await jobService.getJobs(userProfile.companyId, {
         status: options.status,
         limit: options.limit
       });
@@ -97,25 +106,28 @@ export const useFirebaseJobs = (options: UseFirebaseJobsOptions = {}): UseFireba
   };
 
   useEffect(() => {
-    if (options.realTime) {
-      // Set up real-time subscription
-      const unsubscribe = jobService.subscribeToJobs(
-        (updatedJobs) => {
-          setJobs(updatedJobs);
-          setLoading(false);
-        },
-        {
-          status: options.status,
-          limit: options.limit
-        }
-      );
+    if (userProfile?.companyId) {
+      if (options.realTime) {
+        // Set up real-time subscription
+        const unsubscribe = jobService.subscribeToJobs(
+          userProfile.companyId,
+          (updatedJobs) => {
+            setJobs(updatedJobs);
+            setLoading(false);
+          },
+          {
+            status: options.status,
+            limit: options.limit
+          }
+        );
 
-      return () => unsubscribe();
-    } else {
-      // Load jobs once
-      loadJobs();
+        return () => unsubscribe();
+      } else {
+        // Load jobs once
+        loadJobs();
+      }
     }
-  }, [options.status, options.limit, options.realTime]);
+  }, [options.status, options.limit, options.realTime, userProfile?.companyId]);
 
   return {
     jobs,
