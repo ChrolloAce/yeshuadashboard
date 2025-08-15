@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Plus, Search } from 'lucide-react';
+import { User, Plus, Search, X } from 'lucide-react';
 import { useFirebaseClients } from '@/hooks/useFirebaseClients';
 import { Client } from '@/types/database';
 import { ContactInfo } from '@/types/booking';
@@ -71,13 +71,13 @@ export const ClientSelector: React.FC<ClientSelectorProps> = ({
                 )}
               </div>
             </div>
-            <ThemedButton
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDropdownOpen(true)}
+            <button
+              onClick={() => onClientSelect(null)}
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+              title="Remove selected client"
             >
-              Change Client
-            </ThemedButton>
+              <X className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           /* Client Selector */

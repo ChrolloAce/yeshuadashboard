@@ -6,6 +6,7 @@ import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { AcquisitionTab } from '@/components/dashboard/AcquisitionTab';
 import { JobsTab } from '@/components/dashboard/JobsTab';
 import { ClientsTab } from '@/components/dashboard/ClientsTab';
+import { TeamsTab } from '@/components/dashboard/TeamsTab';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
 import { AuthWrapper } from '@/components/auth/AuthWrapper';
@@ -34,12 +35,14 @@ export default class DashboardPage extends React.Component<{}, DashboardPageStat
         return <AcquisitionTab />;
       case 'jobs':
         return <JobsTab />;
-      case 'clients':
-        return <ClientsTab />;
-      case 'analytics':
-        return <AnalyticsTab />;
-      case 'settings':
-        return <SettingsTab />;
+              case 'clients':
+          return <ClientsTab />;
+        case 'teams':
+          return <TeamsTab />;
+        case 'analytics':
+          return <AnalyticsTab />;
+        case 'settings':
+          return <SettingsTab />;
       default:
         return <DashboardHome />;
     }
