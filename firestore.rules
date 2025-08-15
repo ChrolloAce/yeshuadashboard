@@ -7,28 +7,12 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Helper function to check if user owns the resource
-    function isOwner(resource) {
-      return request.auth.uid == resource.data.uid;
-    }
-    
-    // Helper function to check user roles
-    function hasRole(role) {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
-    }
-    
     // Users collection - users can read/write their own profile
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && (
-        request.auth.uid == userId || 
-        hasRole('admin')
-      );
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Clients collection - authenticated users can read/write all clients
-    // In production, you might want to restrict this further
     match /clients/{clientId} {
       allow read, write: if isAuthenticated();
       
@@ -47,35 +31,26 @@ service cloud.firestore {
     // Jobs collection - authenticated users can read/write all jobs
     match /jobs/{jobId} {
       allow read, write: if isAuthenticated();
-      
-      // Cleaners can only update jobs assigned to them
-      allow update: if isAuthenticated() && (
-        hasRole('admin') ||
-        hasRole('cleaner') && resource.data.assignedTo.cleanerId == request.auth.uid
-      );
     }
     
-    // Teams collection - authenticated users can read, admins can write
+    // Teams collection - authenticated users can read/write
     match /teams/{teamId} {
-      allow read: if isAuthenticated();
-      allow write: if hasRole('admin');
+      allow read, write: if isAuthenticated();
     }
     
-    // Analytics and reports - read only for authenticated users
+    // Analytics and reports - authenticated users can read/write
     match /analytics/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if hasRole('admin');
+      allow read, write: if isAuthenticated();
     }
     
-    // Settings collection - admins only
+    // Settings collection - authenticated users can read/write
     match /settings/{document=**} {
-      allow read, write: if hasRole('admin');
+      allow read, write: if isAuthenticated();
     }
     
     // File uploads and media
     match /uploads/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
     
     // Notifications collection
@@ -83,10 +58,9 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Audit logs - read only for admins
+    // Audit logs - authenticated users can read/write
     match /audit_logs/{document=**} {
-      allow read: if hasRole('admin');
-      allow write: if false; // System generated only
+      allow read, write: if isAuthenticated();
     }
     
     // Default fallback - deny all access to unmatched paths
