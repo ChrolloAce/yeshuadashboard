@@ -93,9 +93,19 @@ export class AuthService {
         console.log('Loading user profile...');
         const existingProfile = await this.loadUserProfile(user.uid);
         
+        // Debug: Log profile details
+        if (existingProfile) {
+          console.log('Profile details:', {
+            hasCompanyId: !!existingProfile.companyId,
+            companyId: existingProfile.companyId,
+            companyIdType: typeof existingProfile.companyId,
+            role: existingProfile.role
+          });
+        }
+        
         // Migration: If existing user doesn't have companyId, create company (regardless of role)
-        if (existingProfile && !existingProfile.companyId) {
-          console.log('Migrating existing user to have companyId...');
+        if (existingProfile && (!existingProfile.companyId || existingProfile.companyId === null || existingProfile.companyId === undefined)) {
+          console.log('🔄 Main auth: Migrating existing user to have companyId...');
           try {
             const { CompanyService } = await import('../company/CompanyService');
             const companyService = CompanyService.getInstance();
@@ -118,7 +128,7 @@ export class AuthService {
             existingProfile.role = 'company_owner'; // Update local profile too
             this.userProfile = existingProfile;
             this.notifyListeners();
-            console.log('Existing user migrated with companyId:', company.id);
+            console.log('✅ Main auth: Existing user migrated with companyId:', company.id);
           } catch (error) {
             console.error('Error during user migration:', error);
           }
@@ -244,8 +254,8 @@ export class AuthService {
         const existingProfile = await this.loadUserProfile(user.uid);
         
         // Migration: If existing user doesn't have companyId, create company (regardless of role)
-        if (existingProfile && !existingProfile.companyId) {
-          console.log('Migrating existing user to have companyId...');
+        if (existingProfile && (!existingProfile.companyId || existingProfile.companyId === null || existingProfile.companyId === undefined)) {
+          console.log('🔄 Google sign-in: Migrating existing user to have companyId...');
           const { CompanyService } = await import('../company/CompanyService');
           const companyService = CompanyService.getInstance();
           
@@ -267,7 +277,7 @@ export class AuthService {
           existingProfile.role = 'company_owner'; // Update local profile too
           this.userProfile = existingProfile;
           this.notifyListeners();
-          console.log('Existing user migrated with companyId:', company.id);
+          console.log('✅ Google sign-in: Existing user migrated with companyId:', company.id);
         }
         
         if (!existingProfile) {
