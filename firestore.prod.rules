@@ -1,0 +1,153 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // PRODUCTION RULES - SECURE AND RESTRICTIVE
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function isCleaner() {
+      return hasRole('cleaner');
+    }
+    
+    function isCustomer() {
+      return hasRole('customer');
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches('.*@.*\\..*');
+    }
+    
+    function isValidPhone(phone) {
+      return phone is string && phone.size() >= 10;
+    }
+    
+    // Users collection - strict access control
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && 
+                   request.auth.uid == userId &&
+                   isValidEmail(request.resource.data.email);
+      allow update: if (isOwner(userId) || isAdmin()) &&
+                   request.resource.data.uid == resource.data.uid &&
+                   request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+    
+    // Clients collection - role-based access
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || 
+                   (request.resource.data.keys().hasAll(['email', 'firstName', 'lastName']) &&
+                    isValidEmail(request.resource.data.email));
+      allow update: if isAdmin() ||
+                   (isCleaner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+    
+    // Quotes collection - controlled access
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated();
+      allow create: if request.resource.data.keys().hasAll(['client', 'service', 'address', 'pricing', 'schedule']) &&
+                   isValidEmail(request.resource.data.client.email) &&
+                   request.resource.data.pricing.finalPrice > 0;
+      allow update: if isAdmin() ||
+                   (isAuthenticated() && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'sentAt', 'respondedAt']));
+      allow delete: if isAdmin();
+    }
+    
+    // Jobs collection - role-based permissions
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || 
+                   (isCleaner() && 
+                    resource.data.assignedTo.cleanerId == request.auth.uid &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'status', 'schedule', 'notes', 'beforePhotos', 'afterPhotos', 'updatedAt'
+                    ]));
+      allow delete: if isAdmin();
+    }
+    
+    // Teams collection - admin only
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Analytics - read-only for authenticated, write for admin
+    match /analytics/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Settings - admin only
+    match /settings/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // File uploads - authenticated users only
+    match /uploads/{userId}/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Notifications - user's own notifications only
+    match /notifications/{userId} {
+      match /{notificationId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+    
+    // Audit logs - admin read-only
+    match /audit_logs/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false; // System generated only
+    }
+    
+    // Payment records - restricted access
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || 
+                 (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin() &&
+                   request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if false; // Never delete payment records
+    }
+    
+    // Reviews - customers can create, all can read
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isCustomer() && 
+                   request.auth.uid == request.resource.data.userId &&
+                   request.resource.data.rating >= 1 && 
+                   request.resource.data.rating <= 5;
+      allow update: if isAdmin() || 
+                   (isCustomer() && request.auth.uid == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+    
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

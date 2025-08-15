@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(resource) {
+      return request.auth.uid == resource.data.uid;
+    }
+    
+    // Helper function to check user roles
+    function hasRole(role) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // Users collection - users can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        hasRole('admin')
+      );
+    }
+    
+    // Clients collection - authenticated users can read/write all clients
+    // In production, you might want to restrict this further
+    match /clients/{clientId} {
+      allow read, write: if isAuthenticated();
+      
+      // Allow creating clients during registration/booking process
+      allow create: if true;
+    }
+    
+    // Quotes collection - authenticated users can read/write all quotes
+    match /quotes/{quoteId} {
+      allow read, write: if isAuthenticated();
+      
+      // Allow creating quotes from booking form (even unauthenticated)
+      allow create: if true;
+    }
+    
+    // Jobs collection - authenticated users can read/write all jobs
+    match /jobs/{jobId} {
+      allow read, write: if isAuthenticated();
+      
+      // Cleaners can only update jobs assigned to them
+      allow update: if isAuthenticated() && (
+        hasRole('admin') ||
+        hasRole('cleaner') && resource.data.assignedTo.cleanerId == request.auth.uid
+      );
+    }
+    
+    // Teams collection - authenticated users can read, admins can write
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('admin');
+    }
+    
+    // Analytics and reports - read only for authenticated users
+    match /analytics/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('admin');
+    }
+    
+    // Settings collection - admins only
+    match /settings/{document=**} {
+      allow read, write: if hasRole('admin');
+    }
+    
+    // File uploads and media
+    match /uploads/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Notifications collection
+    match /notifications/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Audit logs - read only for admins
+    match /audit_logs/{document=**} {
+      allow read: if hasRole('admin');
+      allow write: if false; // System generated only
+    }
+    
+    // Default fallback - deny all access to unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
