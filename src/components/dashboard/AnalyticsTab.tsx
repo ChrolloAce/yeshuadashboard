@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { RefreshCw, DollarSign, Briefcase, FileText, CheckCircle, Users, TrendingUp } from 'lucide-react';
+import React from 'react';
+import { RefreshCw, DollarSign, Users, TrendingUp } from 'lucide-react';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { TimeFilter, PieChartData } from '@/types/analytics';
 import { RevenueChart } from '@/components/charts/RevenueChart';
-import { JobsChart } from '@/components/charts/JobsChart';
-import { MonthlyOverviewChart } from '@/components/charts/MonthlyOverviewChart';
 import { PieChart } from '@/components/charts/PieChart';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedCard } from '@/components/ui/ThemedCard';
@@ -25,7 +23,7 @@ export const AnalyticsTab: React.FC = () => {
     refreshData 
   } = useAnalytics();
 
-  const [activeChart, setActiveChart] = useState<'revenue' | 'jobs' | 'monthly'>('revenue');
+
 
   const timeFilterOptions: { value: TimeFilter; label: string }[] = [
     { value: 'week', label: 'Last 7 Days' },
@@ -88,7 +86,7 @@ export const AnalyticsTab: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       {/* Header with Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -183,53 +181,10 @@ export const AnalyticsTab: React.FC = () => {
         </ThemedCard>
       </div>
 
-      {/* Second Row - Job Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Quotes Sent */}
-        <ThemedCard className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Quotes Sent</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.totalQuotes}</p>
-              <p className="text-xs text-gray-500 mt-1">Total inquiries</p>
-            </div>
-            <div className="p-3 bg-gray-100 text-gray-600 rounded-full">
-              <FileText className="w-6 h-6" />
-            </div>
-          </div>
-        </ThemedCard>
 
-        {/* Appointments Booked */}
-        <ThemedCard className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Appointments Booked</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.appointmentsBooked}</p>
-              <p className="text-xs text-yellow-600 mt-1">Scheduled jobs</p>
-            </div>
-            <div className="p-3 bg-yellow-100 text-yellow-600 rounded-full">
-              <Briefcase className="w-6 h-6" />
-            </div>
-          </div>
-        </ThemedCard>
 
-        {/* Jobs Completed */}
-        <ThemedCard className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Jobs Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{metrics.completedJobs}</p>
-              <p className="text-xs text-green-600 mt-1">Finished & paid</p>
-            </div>
-            <div className="p-3 bg-green-100 text-green-600 rounded-full">
-              <CheckCircle className="w-6 h-6" />
-            </div>
-          </div>
-        </ThemedCard>
-      </div>
-
-      {/* Third Row - Pie Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Pie Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <PieChart
           data={revenueBreakdownData}
           title="Revenue Breakdown"
@@ -243,62 +198,10 @@ export const AnalyticsTab: React.FC = () => {
         />
       </div>
 
-      {/* Chart Navigation */}
-      <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg p-1">
-        <button
-          onClick={() => setActiveChart('revenue')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeChart === 'revenue'
-              ? 'bg-primary-600 text-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          Revenue Trends
-        </button>
-        <button
-          onClick={() => setActiveChart('jobs')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeChart === 'jobs'
-              ? 'bg-primary-600 text-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          Jobs Overview
-        </button>
-        <button
-          onClick={() => setActiveChart('monthly')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeChart === 'monthly'
-              ? 'bg-primary-600 text-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          Monthly Trends
-        </button>
-      </div>
-
-      {/* Charts */}
-      <ThemedCard className="p-6">
-        {activeChart === 'revenue' && (
-          <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Revenue Over Time</h2>
-            <RevenueChart data={timeSeriesData} />
-          </>
-        )}
-        
-        {activeChart === 'jobs' && (
-          <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Jobs Performance</h2>
-            <JobsChart data={timeSeriesData} />
-          </>
-        )}
-        
-        {activeChart === 'monthly' && (
-          <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Overview</h2>
-            <MonthlyOverviewChart data={monthlyMetrics} />
-          </>
-        )}
+      {/* Revenue Trends Chart */}
+      <ThemedCard className="p-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Revenue Trends</h2>
+        <RevenueChart data={timeSeriesData} />
       </ThemedCard>
     </div>
   );

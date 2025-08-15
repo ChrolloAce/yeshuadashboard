@@ -42,7 +42,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   centerValue 
 }) => {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>
+    <div className={`bg-white rounded-lg border border-gray-200 p-8 ${className}`}>
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
       
       <div className="relative h-64">

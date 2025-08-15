@@ -43,7 +43,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data, className = ''
   };
 
   return (
-    <div className={`w-full h-80 ${className}`}>
+    <div className={`w-full h-96 ${className}`}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
