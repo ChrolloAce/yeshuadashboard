@@ -12,11 +12,26 @@ interface RevenueChartProps {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const date = parseISO(label);
+    let formattedDate: string;
+    
+    if (label.includes(' ')) {
+      // Hour format (2024-01-15 14:00)
+      const date = parseISO(label.replace(' ', 'T') + ':00');
+      formattedDate = format(date, 'MMM dd, yyyy HH:mm');
+    } else if (label.length === 7) {
+      // Month format (2024-01)
+      const date = parseISO(label + '-01');
+      formattedDate = format(date, 'MMM yyyy');
+    } else {
+      // Day format (2024-01-15)
+      const date = parseISO(label);
+      formattedDate = format(date, 'MMM dd, yyyy');
+    }
+    
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-900 mb-2">
-          {format(date, 'MMM dd, yyyy')}
+          {formattedDate}
         </p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -31,8 +46,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const RevenueChart: React.FC<RevenueChartProps> = ({ data, className = '' }) => {
   const formatXAxisTick = (tickItem: string) => {
-    const date = parseISO(tickItem);
-    return format(date, 'MMM dd');
+    // Handle different date formats
+    if (tickItem.includes(' ')) {
+      // Hour format (2024-01-15 14:00)
+      const date = parseISO(tickItem.replace(' ', 'T') + ':00');
+      return format(date, 'HH:mm');
+    } else if (tickItem.length === 7) {
+      // Month format (2024-01)
+      const date = parseISO(tickItem + '-01');
+      return format(date, 'MMM yyyy');
+    } else {
+      // Day format (2024-01-15)
+      const date = parseISO(tickItem);
+      return format(date, 'MMM dd');
+    }
   };
 
   const formatYAxisTick = (value: number) => {

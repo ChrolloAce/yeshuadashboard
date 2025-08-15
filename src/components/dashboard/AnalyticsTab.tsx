@@ -25,7 +25,8 @@ export const AnalyticsTab: React.FC = () => {
 
 
 
-  const timeFilterOptions: { value: TimeFilter; label: string }[] = [
+  const timeFilterOptions: { value: TimeFilter; label: 'Last 24H' | string }[] = [
+    { value: 'day', label: 'Last 24H' },
     { value: 'week', label: 'Last 7 Days' },
     { value: 'month', label: 'Last 30 Days' },
     { value: 'quarter', label: 'Last 3 Months' },

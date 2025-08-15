@@ -33,7 +33,7 @@ export interface MonthlyMetrics {
   paidCount: number;
 }
 
-export type TimeFilter = 'week' | 'month' | 'quarter' | 'year' | 'all';
+export type TimeFilter = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 export interface AnalyticsFilters {
   timeFilter: TimeFilter;

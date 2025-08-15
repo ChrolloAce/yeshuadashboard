@@ -151,12 +151,28 @@ export class AnalyticsService {
     const filteredJobs = this.filterJobsByTime(this.jobs, filters);
     const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
 
-    // Group data by date
+    // Choose date format based on time filter
+    const getDateKey = (date: Date): string => {
+      switch (filters?.timeFilter) {
+        case 'day':
+          return format(date, 'yyyy-MM-dd HH:00'); // Group by hour for 24H view
+        case 'week':
+        case 'month':
+          return format(date, 'yyyy-MM-dd'); // Group by day
+        case 'quarter':
+        case 'year':
+          return format(date, 'yyyy-MM'); // Group by month
+        default:
+          return format(date, 'yyyy-MM-dd');
+      }
+    };
+
+    // Group data by date/time
     const dataMap = new Map<string, TimeSeriesData>();
 
     // Process jobs
     filteredJobs.forEach(job => {
-      const dateKey = format(job.createdAt, 'yyyy-MM-dd');
+      const dateKey = getDateKey(job.createdAt);
       
       if (!dataMap.has(dateKey)) {
         dataMap.set(dateKey, {
@@ -187,7 +203,7 @@ export class AnalyticsService {
 
     // Process quotes
     filteredQuotes.forEach(quote => {
-      const dateKey = format(quote.createdAt, 'yyyy-MM-dd');
+      const dateKey = getDateKey(quote.createdAt);
       
       if (!dataMap.has(dateKey)) {
         dataMap.set(dateKey, {
@@ -316,6 +332,9 @@ export class AnalyticsService {
     let startDate: Date;
 
     switch (filters.timeFilter) {
+      case 'day':
+        startDate = subDays(now, 1);
+        break;
       case 'week':
         startDate = subWeeks(now, 1);
         break;
@@ -344,6 +363,9 @@ export class AnalyticsService {
     let startDate: Date;
 
     switch (filters.timeFilter) {
+      case 'day':
+        startDate = subDays(now, 1);
+        break;
       case 'week':
         startDate = subWeeks(now, 1);
         break;
