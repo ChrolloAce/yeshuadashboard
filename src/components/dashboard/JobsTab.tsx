@@ -15,7 +15,8 @@ import {
   Edit,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { useFirebaseJobs } from '@/hooks/useFirebaseJobs';
 import { Job, JobStatus } from '@/types/database';
@@ -81,7 +82,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
 
   return (
     <ThemedCard variant="default" padding="md" className="relative">
-      {/* Job Header */}
+      {/* Cleaning Type Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <img 
@@ -90,8 +91,8 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
             className="w-12 h-12 object-contain"
           />
           <div>
-            <h3 className="font-semibold text-gray-900">
-              {job.client.firstName} {job.client.lastName}
+            <h3 className="font-semibold text-gray-900 text-lg">
+              {job.service.type.charAt(0).toUpperCase() + job.service.type.slice(1)} Cleaning
             </h3>
             <p className="text-sm text-gray-500 flex items-center">
               <MapPin className="w-4 h-4 mr-1" />
@@ -165,16 +166,6 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
             <Calendar className="w-4 h-4 mr-1" />
             {formatDate(job.schedule.date)}
           </span>
-          <span className="text-gray-500 flex items-center">
-            <Clock className="w-4 h-4 mr-1" />
-            {job.schedule.estimatedDuration} min
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">
-            {job.service.type.charAt(0).toUpperCase() + job.service.type.slice(1)} Cleaning
-          </span>
           <span className="font-semibold text-gray-900 flex items-center">
             <DollarSign className="w-4 h-4" />
             {job.pricing.finalPrice}
@@ -187,7 +178,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
 
         {job.assignedTo && (
           <div className="flex items-center text-sm text-gray-600 bg-gray-50 rounded-md px-2 py-1">
-            <Users className="w-4 h-4 mr-1" />
+            <User className="w-4 h-4 mr-1" />
             Assigned to {job.assignedTo.cleanerName}
           </div>
         )}
@@ -197,6 +188,21 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
             Add-ons: {job.addOns.join(', ')}
           </div>
         )}
+
+        {/* Client Name at Bottom */}
+        <div className="border-t pt-3 mt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-900">
+              {job.client.firstName} {job.client.lastName}
+            </span>
+            {job.assignedTo && (
+              <div className="flex items-center space-x-1">
+                <User className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-500">Cleaner Assigned</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </ThemedCard>
   );
