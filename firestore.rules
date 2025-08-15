@@ -128,30 +128,21 @@ service cloud.firestore {
       allow write: if isOwnerOfCompany(companyId);
     }
 
-    // Analytics snapshots - company-scoped read access
+    // Analytics snapshots - allow authenticated users to create/read
     match /analytics_snapshots/{snapshotId} {
-      allow read: if isAuthenticated() && (
-        belongsToSameCompany(resource.data.companyId) ||
-        !userExists() // Allow during initial setup when user profile doesn't exist yet
-      );
-      allow create: if isAuthenticated() && request.auth.uid != null;
+      allow read, create: if isAuthenticated();
       allow update, delete: if false; // No updates/deletes allowed
     }
 
-    // Financial records - company owners and admins can read, system can write
+    // Financial records - allow authenticated users to create/read
     match /financial_records/{recordId} {
-      allow read: if isAuthenticated() && isCompanyAdmin() && (
-        belongsToSameCompany(resource.data.companyId) ||
-        !userExists() // Allow during initial setup when user profile doesn't exist yet
-      );
-      allow create: if isAuthenticated() && request.auth.uid != null;
+      allow read, create: if isAuthenticated();
       allow update, delete: if false; // No updates/deletes allowed
     }
 
-    // Company metrics - company-scoped read access
+    // Company metrics - allow authenticated users to create/read/update
     match /company_metrics/{companyId} {
-      allow read: if belongsToSameCompany(companyId);
-      allow create, update: if isAuthenticated() && belongsToSameCompany(companyId);
+      allow read, create, update: if isAuthenticated();
       allow delete: if false; // No deletes allowed
     }
 
