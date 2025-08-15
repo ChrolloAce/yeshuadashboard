@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useBooking } from '@/hooks/useBooking';
+import { Client } from '@/types/database';
+import { ClientSelector } from '@/components/booking/ClientSelector';
+import { TeamSelector } from '@/components/booking/TeamSelector';
 import { ContactForm } from '@/components/booking/ContactForm';
 import { AddressForm } from '@/components/booking/AddressForm';
 import { ServiceSelectionForm } from '@/components/booking/ServiceSelectionForm';
@@ -12,8 +15,57 @@ import { BookingToFirebaseService } from '@/services/booking/BookingToFirebaseSe
 
 export const AcquisitionTab: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | undefined>();
+  const [isNewClient, setIsNewClient] = useState(true);
   const booking = useBooking();
   const bookingService = BookingToFirebaseService.getInstance();
+
+  const handleClientSelect = (client: Client | null) => {
+    setSelectedClient(client);
+    setIsNewClient(client === null);
+    
+    if (client) {
+      // Auto-fill contact and address information
+      booking.updateContact({
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        phone: client.phone || ''
+      });
+      
+      booking.updateAddress({
+        street: client.address.street,
+        apartment: '', // Client address doesn't have apartment field
+        city: client.address.city,
+        state: client.address.state,
+        zipCode: client.address.zipCode
+      });
+    }
+  };
+
+  const handleNewClient = () => {
+    setIsNewClient(true);
+    setSelectedClient(null);
+    // Clear the form when creating new client
+    booking.updateContact({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: ''
+    });
+    booking.updateAddress({
+      street: '',
+      apartment: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    });
+  };
+
+  const handleTeamSelect = (team: any) => {
+    setSelectedTeamId(team?.id);
+  };
 
   const validateBookingData = (bookingData: any): boolean => {
     return !!(
@@ -114,19 +166,38 @@ export const AcquisitionTab: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column - Booking Form */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="form-section">
-            <ContactForm
-              data={booking.bookingData.contact!}
-              onChange={booking.updateContact}
-            />
-          </div>
+          {/* Client Selector */}
+          <ClientSelector
+            onClientSelect={handleClientSelect}
+            onNewClient={handleNewClient}
+            selectedClientId={selectedClient?.id}
+          />
 
-          <div className="form-section">
-            <AddressForm
-              data={booking.bookingData.address!}
-              onChange={booking.updateAddress}
-            />
-          </div>
+          {/* Team Selector */}
+          <TeamSelector
+            onTeamSelect={handleTeamSelect}
+            selectedTeamId={selectedTeamId}
+          />
+
+          {/* Contact Form - only show if new client or no client selected */}
+          {isNewClient && (
+            <div className="form-section">
+              <ContactForm
+                data={booking.bookingData.contact!}
+                onChange={booking.updateContact}
+              />
+            </div>
+          )}
+
+          {/* Address Form - only show if new client or no client selected */}
+          {isNewClient && (
+            <div className="form-section">
+              <AddressForm
+                data={booking.bookingData.address!}
+                onChange={booking.updateAddress}
+              />
+            </div>
+          )}
 
           <div className="form-section">
             <ParkingInstructionsForm
