@@ -10,7 +10,9 @@ import {
   sendPasswordResetEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  updatePassword
+  updatePassword,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -48,9 +50,22 @@ export class AuthService {
   private currentUser: User | null = null;
   private userProfile: UserProfile | null = null;
   private listeners: Set<(user: User | null, profile: UserProfile | null) => void> = new Set();
-  private googleProvider: GoogleAuthProvider;
+  private googleProvider!: GoogleAuthProvider;
+  private isInitialized: boolean = false;
 
   private constructor() {
+    this.initializeAuth();
+  }
+
+  private async initializeAuth(): Promise<void> {
+    try {
+      // Set persistence to local storage for login state preservation
+      await setPersistence(auth, browserLocalPersistence);
+      console.log('Firebase persistence set to local storage');
+    } catch (error) {
+      console.warn('Failed to set Firebase persistence:', error);
+    }
+
     // Initialize Google provider
     this.googleProvider = new GoogleAuthProvider();
     this.googleProvider.addScope('email');
@@ -60,7 +75,8 @@ export class AuthService {
     this.googleProvider.setCustomParameters({
       prompt: 'select_account'
     });
-    // Listen to auth state changes
+
+    // Listen to auth state changes for automatic login restoration
     onAuthStateChanged(auth, async (user) => {
       console.log('Auth state changed:', user ? `User: ${user.uid}` : 'No user');
       this.currentUser = user;
@@ -73,6 +89,9 @@ export class AuthService {
       } else {
         this.userProfile = null;
       }
+      
+      // Mark as initialized after first auth state change
+      this.isInitialized = true;
       
       // Notify all listeners
       this.notifyListeners();
@@ -330,6 +349,10 @@ export class AuthService {
 
   public isCustomer(): boolean {
     return this.hasRole('customer');
+  }
+
+  public isAuthInitialized(): boolean {
+    return this.isInitialized;
   }
 
   public subscribe(listener: (user: User | null, profile: UserProfile | null) => void): () => void {

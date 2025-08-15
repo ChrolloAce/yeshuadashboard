@@ -14,15 +14,16 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mx-auto mb-4">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mx-auto mb-6">
             <img 
-              src="/logo.png" 
+              src="/yc (1).png" 
               alt="Yeshua Cleaning" 
-              className="h-16 w-16 object-contain"
+              className="h-20 w-20 object-contain"
             />
           </div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Restoring your session...</p>
+          <p className="text-gray-400 text-sm mt-2">Please wait while we log you in</p>
         </div>
       </div>
     );
