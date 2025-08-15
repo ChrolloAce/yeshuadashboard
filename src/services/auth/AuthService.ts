@@ -17,6 +17,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { COLLECTIONS } from '@/types/database';
+import { AnalyticsScheduler } from '../analytics/AnalyticsScheduler';
 
 export interface UserProfile {
   uid: string;
@@ -59,8 +60,10 @@ export class AuthService {
   private listeners: Set<(user: User | null, profile: UserProfile | null) => void> = new Set();
   private googleProvider!: GoogleAuthProvider;
   private isInitialized: boolean = false;
+  private analyticsScheduler: AnalyticsScheduler;
 
   private constructor() {
+    this.analyticsScheduler = AnalyticsScheduler.getInstance();
     this.initializeAuth();
   }
 
@@ -168,6 +171,9 @@ export class AuthService {
             console.error('Failed to create basic profile:', error);
           }
         }
+        
+        // Initialize analytics tracking
+        this.initializeAnalyticsForUser();
         
         console.log('User profile loaded:', this.userProfile);
       } else {
@@ -564,6 +570,16 @@ export class AuthService {
     this.listeners.forEach(listener => {
       listener(this.currentUser, this.userProfile);
     });
+  }
+
+  /**
+   * Initialize analytics tracking when user profile is loaded
+   */
+  private initializeAnalyticsForUser(): void {
+    if (this.userProfile?.companyId) {
+      this.analyticsScheduler.scheduleCompanySnapshots(this.userProfile.companyId);
+      console.log('📊 Analytics tracking initialized for company:', this.userProfile.companyId);
+    }
   }
 
   private async loadUserProfile(userId: string): Promise<UserProfile | null> {

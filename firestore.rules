@@ -128,6 +128,24 @@ service cloud.firestore {
       allow write: if isOwnerOfCompany(companyId);
     }
 
+    // Analytics snapshots - company-scoped read access
+    match /analytics_snapshots/{snapshotId} {
+      allow read: if isAuthenticated() && belongsToSameCompany(resource.data.companyId);
+      allow write: if false; // System only
+    }
+
+    // Financial records - company owners and admins can read, system can write
+    match /financial_records/{recordId} {
+      allow read: if isAuthenticated() && isCompanyAdmin() && belongsToSameCompany(resource.data.companyId);
+      allow write: if false; // System only
+    }
+
+    // Company metrics - company-scoped read access
+    match /company_metrics/{companyId} {
+      allow read: if belongsToSameCompany(companyId);
+      allow write: if false; // System only
+    }
+
     // Audit logs - company owners can read their company's logs
     match /audit_logs/{companyId}/{document=**} {
       allow read: if isOwnerOfCompany(companyId);

@@ -18,13 +18,16 @@ import {
 import { db } from '@/lib/firebase';
 import { Job, Quote, COLLECTIONS, JobStatus, PaymentStatus } from '@/types/database';
 import { ClientService } from './ClientService';
+import { AnalyticsPersistenceService } from '../analytics/AnalyticsPersistenceService';
 
 export class JobService {
   private static instance: JobService;
   private clientService: ClientService;
+  private analyticsPersistenceService: AnalyticsPersistenceService;
 
   private constructor() {
     this.clientService = ClientService.getInstance();
+    this.analyticsPersistenceService = AnalyticsPersistenceService.getInstance();
   }
 
   public static getInstance(): JobService {
@@ -214,11 +217,20 @@ export class JobService {
 
       await updateDoc(docRef, updates);
 
-      // Update client statistics when job is completed
+      // Update client statistics and analytics when job is completed
       if (status === 'completed') {
         const job = await this.getJob(id);
         if (job) {
           await this.updateClientJobStats(job.clientId);
+          
+          // Track analytics and financial records
+          try {
+            await this.analyticsPersistenceService.processJobCompletion(job.companyId, job);
+            console.log('✅ Analytics tracking completed for job:', id);
+          } catch (error) {
+            console.error('❌ Error tracking analytics for job completion:', error);
+            // Don't throw error to avoid breaking job completion
+          }
         }
       }
     } catch (error) {
