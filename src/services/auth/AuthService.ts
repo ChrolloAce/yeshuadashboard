@@ -212,25 +212,28 @@ export class AuthService {
       try {
         const existingProfile = await this.loadUserProfile(user.uid);
         
-        // Migration: If existing user doesn't have companyId but is company_owner, create company
-        if (existingProfile && existingProfile.role === 'company_owner' && !existingProfile.companyId) {
-          console.log('Migrating existing company owner to have companyId...');
+        // Migration: If existing user doesn't have companyId, create company (regardless of role)
+        if (existingProfile && !existingProfile.companyId) {
+          console.log('Migrating existing user to have companyId...');
           const { CompanyService } = await import('../company/CompanyService');
           const companyService = CompanyService.getInstance();
           
+          // Create company for any existing user without one
           const company = await companyService.createCompany({
             name: `${existingProfile.firstName} ${existingProfile.lastName}'s Company`,
             email: existingProfile.email,
             ownerId: user.uid
           });
           
-          // Update existing profile with companyId
+          // Update existing profile with companyId and set role to company_owner
           await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
             companyId: company.id,
+            role: 'company_owner', // Make them company owner of their new company
             updatedAt: Timestamp.fromDate(new Date())
           });
           
           existingProfile.companyId = company.id;
+          existingProfile.role = 'company_owner'; // Update local profile too
           this.userProfile = existingProfile;
           this.notifyListeners();
           console.log('Existing user migrated with companyId:', company.id);
