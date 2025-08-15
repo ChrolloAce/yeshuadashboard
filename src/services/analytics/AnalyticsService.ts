@@ -220,7 +220,81 @@ export class AnalyticsService {
       data.quotes += 1;
     });
 
-    return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const sortedData = Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Fill in missing time periods with 0 values
+    return this.fillMissingTimeSlots(sortedData, filters);
+  }
+
+  private fillMissingTimeSlots(data: TimeSeriesData[], filters?: AnalyticsFilters): TimeSeriesData[] {
+    if (data.length === 0) return data;
+
+    const timeFilter = filters?.timeFilter || 'month';
+    const result: TimeSeriesData[] = [];
+    
+    // Determine the time increment and format based on filter
+    let startDate: Date;
+    let endDate: Date = new Date();
+    let increment: (date: Date) => Date;
+    let formatKey: (date: Date) => string;
+
+    switch (timeFilter) {
+      case 'day':
+        startDate = subDays(endDate, 1);
+        increment = (date: Date) => new Date(date.getTime() + 60 * 60 * 1000); // Add 1 hour
+        formatKey = (date: Date) => format(date, 'yyyy-MM-dd HH:00');
+        break;
+      case 'week':
+        startDate = subWeeks(endDate, 1);
+        increment = (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
+        formatKey = (date: Date) => format(date, 'yyyy-MM-dd');
+        break;
+      case 'month':
+        startDate = subMonths(endDate, 1);
+        increment = (date: Date) => new Date(date.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
+        formatKey = (date: Date) => format(date, 'yyyy-MM-dd');
+        break;
+      case 'quarter':
+        startDate = subQuarters(endDate, 1);
+        increment = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 1); // Add 1 month
+        formatKey = (date: Date) => format(date, 'yyyy-MM');
+        break;
+      case 'year':
+        startDate = subYears(endDate, 1);
+        increment = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 1); // Add 1 month
+        formatKey = (date: Date) => format(date, 'yyyy-MM');
+        break;
+      default:
+        return data; // Return as-is for 'all' filter
+    }
+
+    // Create a map of existing data for quick lookup
+    const dataMap = new Map<string, TimeSeriesData>();
+    data.forEach(item => dataMap.set(item.date, item));
+
+    // Fill in all time slots
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dateKey = formatKey(currentDate);
+      
+      if (dataMap.has(dateKey)) {
+        result.push(dataMap.get(dateKey)!);
+      } else {
+        // Add missing slot with 0 values
+        result.push({
+          date: dateKey,
+          revenue: 0,
+          jobs: 0,
+          quotes: 0,
+          approved: 0,
+          completed: 0
+        });
+      }
+      
+      currentDate = increment(currentDate);
+    }
+
+    return result;
   }
 
   public getMonthlyMetrics(): MonthlyMetrics[] {
