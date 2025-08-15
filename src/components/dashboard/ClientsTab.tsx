@@ -11,7 +11,7 @@ interface ClientCardProps {
   onViewDetails: (client: Client) => void;
 }
 
-const ClientCard: React.FC<ClientCardProps> = ({ client, onViewDetails }) => {
+const ClientRow: React.FC<ClientCardProps> = ({ client, onViewDetails }) => {
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -21,49 +21,58 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onViewDetails }) => {
   };
 
   return (
-    <ThemedCard className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onViewDetails(client)}>
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-lg">
-                {client.firstName.charAt(0)}{client.lastName.charAt(0)}
-              </span>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {client.firstName} {client.lastName}
-              </h3>
-              <p className="text-sm text-gray-500">Client since {formatDate(client.createdAt)}</p>
+    <div 
+      className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+      onClick={() => onViewDetails(client)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          {/* Avatar */}
+          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-semibold text-sm">
+              {client.firstName.charAt(0)}{client.lastName.charAt(0)}
+            </span>
+          </div>
+
+          {/* Client Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-4">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  {client.firstName} {client.lastName}
+                </h3>
+                <p className="text-sm text-gray-500">Client since {formatDate(client.createdAt)}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
+        {/* Contact & Location Info */}
+        <div className="flex items-center space-x-8 text-sm text-gray-600">
+          <div className="flex items-center space-x-2">
             <Mail className="w-4 h-4" />
-            <span>{client.email}</span>
+            <span className="hidden sm:inline">{client.email}</span>
           </div>
+          
           {client.phone && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4" />
-              <span>{client.phone}</span>
+              <span className="hidden md:inline">{client.phone}</span>
             </div>
           )}
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
+          
+          <div className="flex items-center space-x-2">
             <MapPin className="w-4 h-4" />
-            <span>{client.address.city}, {client.address.state}</span>
+            <span className="hidden lg:inline">{client.address.city}, {client.address.state}</span>
           </div>
-        </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-          <div className="text-sm text-gray-500">
-            <Calendar className="w-4 h-4 inline mr-1" />
-            Last updated: {formatDate(client.updatedAt)}
+          <div className="flex items-center space-x-2 text-xs text-gray-400">
+            <Calendar className="w-4 h-4" />
+            <span className="hidden xl:inline">{formatDate(client.updatedAt)}</span>
           </div>
         </div>
       </div>
-    </ThemedCard>
+    </div>
   );
 };
 
@@ -168,9 +177,26 @@ export const ClientsTab: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-3">
+          {/* Table Header */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between text-sm font-medium text-gray-500 uppercase tracking-wide">
+              <div className="flex items-center space-x-4">
+                <div className="w-10"></div> {/* Avatar space */}
+                <div>Client</div>
+              </div>
+              <div className="flex items-center space-x-8">
+                <div className="hidden sm:block">Email</div>
+                <div className="hidden md:block">Phone</div>
+                <div className="hidden lg:block">Location</div>
+                <div className="hidden xl:block">Updated</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Client Rows */}
           {clients.map((client) => (
-            <ClientCard
+            <ClientRow
               key={client.id}
               client={client}
               onViewDetails={handleViewDetails}
