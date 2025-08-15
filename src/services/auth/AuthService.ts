@@ -84,7 +84,35 @@ export class AuthService {
       if (user) {
         // Load user profile from Firestore
         console.log('Loading user profile...');
-        await this.loadUserProfile(user.uid);
+        const existingProfile = await this.loadUserProfile(user.uid);
+        
+        // If no profile exists, create a basic one
+        if (!existingProfile && user.email) {
+          console.log('No profile found, creating basic profile...');
+          const names = (user.displayName || user.email.split('@')[0]).split(' ');
+          const firstName = names[0] || '';
+          const lastName = names.slice(1).join(' ') || '';
+
+          const basicProfile = {
+            uid: user.uid,
+            email: user.email,
+            firstName,
+            lastName,
+            role: 'customer' as const,
+            avatar: user.photoURL || undefined,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+
+          try {
+            await setDoc(doc(db, 'users', user.uid), basicProfile);
+            this.userProfile = basicProfile;
+            console.log('Basic user profile created');
+          } catch (error) {
+            console.error('Failed to create basic profile:', error);
+          }
+        }
+        
         console.log('User profile loaded:', this.userProfile);
       } else {
         this.userProfile = null;
@@ -187,9 +215,14 @@ export class AuthService {
         if (!existingProfile) {
           console.log('Creating new user profile in background...');
           // Create profile in background without blocking UI
-          setDoc(doc(db, 'users', user.uid), tempProfile).catch(error => {
-            console.error('Failed to save user profile:', error);
+          await setDoc(doc(db, 'users', user.uid), {
+            ...tempProfile,
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
+          this.userProfile = tempProfile;
+          this.notifyListeners();
+          console.log('User profile created successfully');
         }
       } catch (error) {
         console.warn('Profile check failed, using temporary profile:', error);
