@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useEffect } from 'react';
 import { theme, getCSSVariables } from '@/styles/theme';
 
