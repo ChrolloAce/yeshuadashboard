@@ -388,18 +388,48 @@ export class QuoteService {
       pricing: data.pricing,
       schedule: {
         ...data.schedule,
-        date: data.schedule.date.toDate()
+        date: this.convertToDate(data.schedule.date)
       },
       addOns: data.addOns,
       specialInstructions: data.specialInstructions,
       parkingInstructions: data.parkingInstructions,
       status: data.status,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate(),
-      sentAt: data.sentAt?.toDate(),
-      respondedAt: data.respondedAt?.toDate(),
-      expiresAt: data.expiresAt.toDate()
+      createdAt: this.convertToDate(data.createdAt),
+      updatedAt: this.convertToDate(data.updatedAt),
+      sentAt: data.sentAt ? this.convertToDate(data.sentAt) : undefined,
+      respondedAt: data.respondedAt ? this.convertToDate(data.respondedAt) : undefined,
+      expiresAt: this.convertToDate(data.expiresAt)
     };
+  }
+
+  // Helper method to convert various date formats to Date object
+  private convertToDate(dateValue: any): Date {
+    if (!dateValue) {
+      return new Date();
+    }
+    
+    // If it's already a Date object
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+    
+    // If it's a Firestore Timestamp
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate();
+    }
+    
+    // If it's a string or number, convert to Date
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      return new Date(dateValue);
+    }
+    
+    // If it has seconds property (Firestore Timestamp-like object)
+    if (dateValue && typeof dateValue.seconds === 'number') {
+      return new Date(dateValue.seconds * 1000);
+    }
+    
+    console.warn('Unknown date format:', dateValue);
+    return new Date();
   }
 
   // Helper method to remove undefined values for Firestore
