@@ -211,17 +211,69 @@ export class AuthService {
       // Check if user profile exists in background
       try {
         const existingProfile = await this.loadUserProfile(user.uid);
+        
+        // Migration: If existing user doesn't have companyId but is company_owner, create company
+        if (existingProfile && existingProfile.role === 'company_owner' && !existingProfile.companyId) {
+          console.log('Migrating existing company owner to have companyId...');
+          const { CompanyService } = await import('../company/CompanyService');
+          const companyService = CompanyService.getInstance();
+          
+          const company = await companyService.createCompany({
+            name: `${existingProfile.firstName} ${existingProfile.lastName}'s Company`,
+            email: existingProfile.email,
+            ownerId: user.uid
+          });
+          
+          // Update existing profile with companyId
+          await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+            companyId: company.id,
+            updatedAt: Timestamp.fromDate(new Date())
+          });
+          
+          existingProfile.companyId = company.id;
+          this.userProfile = existingProfile;
+          this.notifyListeners();
+          console.log('Existing user migrated with companyId:', company.id);
+        }
+        
         if (!existingProfile) {
-          console.log('Creating new user profile in background...');
-          // Create profile in background without blocking UI
-          await setDoc(doc(db, 'users', user.uid), {
+          console.log('Creating new user profile and company in background...');
+          
+          // Create company first for company owners
+          let companyId: string | undefined;
+          if (tempProfile.role === 'company_owner') {
+            const { CompanyService } = await import('../company/CompanyService');
+            const companyService = CompanyService.getInstance();
+            
+            const company = await companyService.createCompany({
+              name: `${tempProfile.firstName} ${tempProfile.lastName}'s Company`,
+              email: tempProfile.email,
+              ownerId: user.uid
+            });
+            
+            companyId = company.id;
+            console.log('Company created:', companyId);
+          }
+
+          // Update profile with companyId
+          const profileWithCompany: UserProfile = {
             ...tempProfile,
+            companyId,
             createdAt: new Date(),
             updatedAt: new Date()
+          };
+
+          // Create profile in Firestore
+          await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+            ...profileWithCompany,
+            createdAt: Timestamp.fromDate(profileWithCompany.createdAt),
+            updatedAt: Timestamp.fromDate(profileWithCompany.updatedAt),
+            lastLoginAt: Timestamp.fromDate(profileWithCompany.lastLoginAt!)
           });
-          this.userProfile = tempProfile;
+          
+          this.userProfile = profileWithCompany;
           this.notifyListeners();
-          console.log('User profile created successfully');
+          console.log('User profile created successfully with companyId:', companyId);
         }
       } catch (error) {
         console.warn('Profile check failed, using temporary profile:', error);
