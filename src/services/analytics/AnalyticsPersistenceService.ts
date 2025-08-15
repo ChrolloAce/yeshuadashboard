@@ -33,6 +33,23 @@ export class AnalyticsPersistenceService {
     return AnalyticsPersistenceService.instance;
   }
 
+  /**
+   * Remove undefined values from an object recursively
+   */
+  private filterUndefinedValues(obj: any): any {
+    const filtered: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date) && !(value as any)?.toDate) {
+          filtered[key] = this.filterUndefinedValues(value);
+        } else {
+          filtered[key] = value;
+        }
+      }
+    }
+    return filtered;
+  }
+
   // ===== FINANCIAL RECORDS =====
   
   /**
@@ -54,14 +71,26 @@ export class AnalyticsPersistenceService {
         createdAt: now
       };
 
+      // Remove undefined values to prevent Firestore errors
+      const cleanRecord = this.filterUndefinedValues(financialRecord);
+
+      // Prepare the final record with proper Timestamp conversion
+      const firestoreRecord: any = {
+        ...cleanRecord,
+        createdAt: Timestamp.fromDate(cleanRecord.createdAt)
+      };
+
+      // Only add timestamp fields if they exist
+      if (cleanRecord.reconciledAt) {
+        firestoreRecord.reconciledAt = Timestamp.fromDate(cleanRecord.reconciledAt);
+      }
+      if (cleanRecord.updatedAt) {
+        firestoreRecord.updatedAt = Timestamp.fromDate(cleanRecord.updatedAt);
+      }
+
       const docRef = await addDoc(
         collection(db, COLLECTIONS.FINANCIAL_RECORDS),
-        {
-          ...financialRecord,
-          createdAt: Timestamp.fromDate(financialRecord.createdAt),
-          reconciledAt: financialRecord.reconciledAt ? Timestamp.fromDate(financialRecord.reconciledAt) : undefined,
-          updatedAt: financialRecord.updatedAt ? Timestamp.fromDate(financialRecord.updatedAt) : undefined
-        }
+        firestoreRecord
       );
 
       console.log('✅ Financial record created:', docRef.id);
