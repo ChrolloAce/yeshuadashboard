@@ -6,8 +6,11 @@ export interface AnalyticsMetrics {
   paidJobs: number;
   pendingJobs: number;
   completedJobs: number;
+  appointmentsBooked: number;
   averageJobValue: number;
   conversionRate: number; // jobs approved / quotes sent
+  totalPaidToCleaners: number;
+  totalProfit: number;
 }
 
 export interface TimeSeriesData {
@@ -48,7 +51,15 @@ export interface RevenueBreakdown {
   totalRevenue: number;
   paidRevenue: number;
   pendingRevenue: number;
+  totalPaidToCleaners: number;
+  totalProfit: number;
   averageJobValue: number;
   highestJobValue: number;
   lowestJobValue: number;
+}
+
+export interface PieChartData {
+  name: string;
+  value: number;
+  color: string;
 }

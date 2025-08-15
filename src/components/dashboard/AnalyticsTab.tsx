@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, Filter, RefreshCw, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { RefreshCw, DollarSign, Briefcase, FileText, CheckCircle, Users, TrendingUp } from 'lucide-react';
 import { useAnalytics } from '@/hooks/useAnalytics';
-import { TimeFilter } from '@/types/analytics';
-import { MetricsCards } from '@/components/charts/MetricsCards';
+import { TimeFilter, PieChartData } from '@/types/analytics';
 import { RevenueChart } from '@/components/charts/RevenueChart';
 import { JobsChart } from '@/components/charts/JobsChart';
 import { MonthlyOverviewChart } from '@/components/charts/MonthlyOverviewChart';
+import { PieChart } from '@/components/charts/PieChart';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedCard } from '@/components/ui/ThemedCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -66,7 +66,7 @@ export const AnalyticsTab: React.FC = () => {
     );
   }
 
-  if (!metrics) {
+  if (!metrics || !revenueBreakdown) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
         <p className="text-gray-600">No analytics data available</p>
@@ -74,12 +74,25 @@ export const AnalyticsTab: React.FC = () => {
     );
   }
 
+  // Prepare pie chart data
+  const revenueBreakdownData: PieChartData[] = [
+    { name: 'Total Revenue', value: revenueBreakdown.paidRevenue, color: '#7c2429' },
+    { name: 'Paid to Cleaners', value: revenueBreakdown.totalPaidToCleaners, color: '#f59e0b' },
+    { name: 'Profit', value: revenueBreakdown.totalProfit, color: '#10b981' }
+  ];
+
+  const jobStatusData: PieChartData[] = [
+    { name: 'Quotes Sent', value: metrics.totalQuotes, color: '#e5e7eb' },
+    { name: 'Appointments Booked', value: metrics.appointmentsBooked, color: '#fbbf24' },
+    { name: 'Jobs Completed', value: metrics.completedJobs, color: '#7c2429' }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header with Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="text-gray-600">Real-time insights into your cleaning business</p>
         </div>
         
@@ -108,96 +121,127 @@ export const AnalyticsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      {metrics && <MetricsCards metrics={metrics} />}
+      {/* Top Row - Main Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Revenue */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(metrics.totalRevenue)}</p>
+              <p className="text-xs text-green-600 mt-1">
+                <TrendingUp className="w-3 h-3 inline mr-1" />
+                +{metrics.conversionRate.toFixed(1)}% conversion
+              </p>
+            </div>
+            <div className="p-3 bg-primary-100 text-primary-600 rounded-full">
+              <DollarSign className="w-6 h-6" />
+            </div>
+          </div>
+        </ThemedCard>
 
-      {/* Revenue Breakdown */}
-      {revenueBreakdown && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <ThemedCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Revenue Breakdown</h3>
-              <TrendingUp className="w-5 h-5 text-green-500" />
+        {/* Total Paid to Cleaners */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Paid to Cleaners</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(metrics.totalPaidToCleaners)}</p>
+              <p className="text-xs text-gray-500 mt-1">70% of revenue</p>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Paid Revenue</span>
-                <span className="font-semibold text-green-600">
-                  {formatCurrency(revenueBreakdown.paidRevenue)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Pending Revenue</span>
-                <span className="font-semibold text-yellow-600">
-                  {formatCurrency(revenueBreakdown.pendingRevenue)}
-                </span>
-              </div>
-              <div className="pt-2 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-900">Total Revenue</span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(revenueBreakdown.totalRevenue)}
-                  </span>
-                </div>
-              </div>
+            <div className="p-3 bg-yellow-100 text-yellow-600 rounded-full">
+              <Users className="w-6 h-6" />
             </div>
-          </ThemedCard>
+          </div>
+        </ThemedCard>
 
-          <ThemedCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Job Values</h3>
-              <TrendingUp className="w-5 h-5 text-blue-500" />
+        {/* Total Profit */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Profit</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(metrics.totalProfit)}</p>
+              <p className="text-xs text-gray-500 mt-1">30% margin</p>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Average Job</span>
-                <span className="font-semibold text-blue-600">
-                  {formatCurrency(revenueBreakdown.averageJobValue)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Highest Job</span>
-                <span className="font-semibold text-green-600">
-                  {formatCurrency(revenueBreakdown.highestJobValue)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Lowest Job</span>
-                <span className="font-semibold text-gray-600">
-                  {formatCurrency(revenueBreakdown.lowestJobValue)}
-                </span>
-              </div>
+            <div className="p-3 bg-green-100 text-green-600 rounded-full">
+              <TrendingUp className="w-6 h-6" />
             </div>
-          </ThemedCard>
+          </div>
+        </ThemedCard>
 
-          <ThemedCard className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Performance</h3>
-              <TrendingUp className="w-5 h-5 text-primary-500" />
+        {/* Average Job Value */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Avg Job Value</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(metrics.averageJobValue)}</p>
+              <p className="text-xs text-gray-500 mt-1">{metrics.paidJobs} paid jobs</p>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Conversion Rate</span>
-                <span className="font-semibold text-primary-600">
-                  {metrics.conversionRate.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Completed Jobs</span>
-                <span className="font-semibold text-green-600">
-                  {metrics.completedJobs}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Pending Jobs</span>
-                <span className="font-semibold text-yellow-600">
-                  {metrics.pendingJobs}
-                </span>
-              </div>
+            <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
+              <DollarSign className="w-6 h-6" />
             </div>
-          </ThemedCard>
-        </div>
-      )}
+          </div>
+        </ThemedCard>
+      </div>
+
+      {/* Second Row - Job Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Quotes Sent */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Quotes Sent</p>
+              <p className="text-2xl font-bold text-gray-900">{metrics.totalQuotes}</p>
+              <p className="text-xs text-gray-500 mt-1">Total inquiries</p>
+            </div>
+            <div className="p-3 bg-gray-100 text-gray-600 rounded-full">
+              <FileText className="w-6 h-6" />
+            </div>
+          </div>
+        </ThemedCard>
+
+        {/* Appointments Booked */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Appointments Booked</p>
+              <p className="text-2xl font-bold text-gray-900">{metrics.appointmentsBooked}</p>
+              <p className="text-xs text-yellow-600 mt-1">Scheduled jobs</p>
+            </div>
+            <div className="p-3 bg-yellow-100 text-yellow-600 rounded-full">
+              <Briefcase className="w-6 h-6" />
+            </div>
+          </div>
+        </ThemedCard>
+
+        {/* Jobs Completed */}
+        <ThemedCard className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Jobs Completed</p>
+              <p className="text-2xl font-bold text-gray-900">{metrics.completedJobs}</p>
+              <p className="text-xs text-green-600 mt-1">Finished & paid</p>
+            </div>
+            <div className="p-3 bg-green-100 text-green-600 rounded-full">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+          </div>
+        </ThemedCard>
+      </div>
+
+      {/* Third Row - Pie Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PieChart
+          data={revenueBreakdownData}
+          title="Revenue Breakdown"
+          showLegend={true}
+        />
+        
+        <PieChart
+          data={jobStatusData}
+          title="Job Pipeline"
+          showLegend={true}
+        />
+      </div>
 
       {/* Chart Navigation */}
       <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg p-1">
@@ -255,29 +299,6 @@ export const AnalyticsTab: React.FC = () => {
             <MonthlyOverviewChart data={monthlyMetrics} />
           </>
         )}
-      </ThemedCard>
-
-      {/* Data Summary */}
-      <ThemedCard className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Data Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">Total Data Points</p>
-            <p className="text-xl font-bold text-gray-900">{timeSeriesData.length}</p>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">Monthly Records</p>
-            <p className="text-xl font-bold text-gray-900">{monthlyMetrics.length}</p>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">Time Period</p>
-            <p className="text-xl font-bold text-gray-900">{filters.timeFilter}</p>
-          </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">Last Updated</p>
-            <p className="text-xl font-bold text-gray-900">Live</p>
-          </div>
-        </div>
       </ThemedCard>
     </div>
   );

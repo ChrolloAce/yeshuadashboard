@@ -121,6 +121,15 @@ export class AnalyticsService {
     const totalRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
     const averageJobValue = paidJobs.length > 0 ? totalRevenue / paidJobs.length : 0;
     const conversionRate = filteredQuotes.length > 0 ? (approvedJobs.length / filteredQuotes.length) * 100 : 0;
+    
+    // Calculate cleaner payments (assuming 70% goes to cleaners, 30% profit)
+    const totalPaidToCleaners = totalRevenue * 0.7;
+    const totalProfit = totalRevenue * 0.3;
+    
+    // Appointments booked = jobs that are assigned or in progress
+    const appointmentsBooked = filteredJobs.filter(job => 
+      job.status === 'assigned' || job.status === 'in-progress'
+    ).length;
 
     return {
       totalRevenue,
@@ -130,8 +139,11 @@ export class AnalyticsService {
       paidJobs: paidJobs.length,
       pendingJobs: pendingJobs.length,
       completedJobs: completedJobs.length,
+      appointmentsBooked,
       averageJobValue,
-      conversionRate
+      conversionRate,
+      totalPaidToCleaners,
+      totalProfit
     };
   }
 
@@ -275,6 +287,9 @@ export class AnalyticsService {
     const pendingRevenue = pendingJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
     const totalRevenue = paidRevenue + pendingRevenue;
 
+    const totalPaidToCleaners = paidRevenue * 0.7;
+    const totalProfit = paidRevenue * 0.3;
+
     const jobValues = filteredJobs.map(job => job.pricing.finalPrice || 0).filter(value => value > 0);
     const averageJobValue = jobValues.length > 0 ? jobValues.reduce((sum, value) => sum + value, 0) / jobValues.length : 0;
     const highestJobValue = jobValues.length > 0 ? Math.max(...jobValues) : 0;
@@ -284,6 +299,8 @@ export class AnalyticsService {
       totalRevenue,
       paidRevenue,
       pendingRevenue,
+      totalPaidToCleaners,
+      totalProfit,
       averageJobValue,
       highestJobValue,
       lowestJobValue
