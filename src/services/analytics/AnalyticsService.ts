@@ -2,8 +2,7 @@
 
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Job, JobStatus, PaymentStatus } from '@/types/jobs';
-import { Quote } from '@/types/database';
+import { Job, Quote, JobStatus, PaymentStatus } from '@/types/database';
 import { 
   AnalyticsMetrics, 
   TimeSeriesData, 
@@ -42,7 +41,10 @@ export class AnalyticsService {
           id: doc.id,
           createdAt: this.convertToDate(data.createdAt),
           updatedAt: this.convertToDate(data.updatedAt),
-          scheduledDate: this.convertToDate(data.scheduledDate)
+          schedule: {
+            ...data.schedule,
+            date: this.convertToDate(data.schedule?.date)
+          }
         } as unknown as Job;
       });
       this.notifyListeners();
@@ -86,8 +88,17 @@ export class AnalyticsService {
   }
 
   private notifyListeners(): void {
-    // This would notify any components listening to changes
-    // For now, components will call getMetrics() when they need fresh data
+    console.log('📊 Analytics data updated:', {
+      jobsCount: this.jobs.length,
+      quotesCount: this.quotes.length,
+      latestJob: this.jobs[0]?.id,
+      latestQuote: this.quotes[0]?.id
+    });
+    
+    // Trigger a custom event that components can listen to
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('analytics-data-updated'));
+    }
   }
 
   public getMetrics(filters?: AnalyticsFilters): AnalyticsMetrics {
@@ -95,19 +106,19 @@ export class AnalyticsService {
     const filteredQuotes = this.filterQuotesByTime(this.quotes, filters);
 
     const approvedJobs = filteredJobs.filter(job => 
-      job.status === JobStatus.ASSIGNED || 
-      job.status === JobStatus.IN_PROGRESS || 
-      job.status === JobStatus.COMPLETED
+      job.status === 'assigned' || 
+      job.status === 'in-progress' || 
+      job.status === 'completed'
     );
 
     const paidJobs = filteredJobs.filter(job => 
-      job.paymentStatus === PaymentStatus.PAID || job.status === JobStatus.COMPLETED
+      job.payment.status === 'paid' || job.status === 'completed'
     );
 
-    const completedJobs = filteredJobs.filter(job => job.status === JobStatus.COMPLETED);
-    const pendingJobs = filteredJobs.filter(job => job.status === JobStatus.PENDING);
+    const completedJobs = filteredJobs.filter(job => job.status === 'completed');
+    const pendingJobs = filteredJobs.filter(job => job.status === 'pending');
 
-    const totalRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.total || 0), 0);
+    const totalRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
     const averageJobValue = paidJobs.length > 0 ? totalRevenue / paidJobs.length : 0;
     const conversionRate = filteredQuotes.length > 0 ? (approvedJobs.length / filteredQuotes.length) * 100 : 0;
 
@@ -149,15 +160,15 @@ export class AnalyticsService {
       const data = dataMap.get(dateKey)!;
       data.jobs += 1;
       
-      if (job.paymentStatus === PaymentStatus.PAID || job.status === JobStatus.COMPLETED) {
-        data.revenue += job.pricing.total || 0;
+      if (job.payment.status === 'paid' || job.status === 'completed') {
+        data.revenue += job.pricing.finalPrice || 0;
       }
       
-      if (job.status === JobStatus.ASSIGNED || job.status === JobStatus.IN_PROGRESS || job.status === JobStatus.COMPLETED) {
+      if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
         data.approved += 1;
       }
       
-      if (job.status === JobStatus.COMPLETED) {
+      if (job.status === 'completed') {
         data.completed += 1;
       }
     });
@@ -209,16 +220,16 @@ export class AnalyticsService {
       const metrics = monthlyMap.get(monthKey)!;
       metrics.jobsCount += 1;
 
-      if (job.paymentStatus === PaymentStatus.PAID || job.status === JobStatus.COMPLETED) {
-        metrics.revenue += job.pricing.total || 0;
+      if (job.payment.status === 'paid' || job.status === 'completed') {
+        metrics.revenue += job.pricing.finalPrice || 0;
         metrics.paidCount += 1;
       }
 
-      if (job.status === JobStatus.ASSIGNED || job.status === JobStatus.IN_PROGRESS || job.status === JobStatus.COMPLETED) {
+      if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
         metrics.approvedCount += 1;
       }
 
-      if (job.status === JobStatus.COMPLETED) {
+      if (job.status === 'completed') {
         metrics.completedCount += 1;
       }
     });
@@ -253,18 +264,18 @@ export class AnalyticsService {
     const filteredJobs = this.filterJobsByTime(this.jobs, filters);
     
     const paidJobs = filteredJobs.filter(job => 
-      job.paymentStatus === PaymentStatus.PAID || job.status === JobStatus.COMPLETED
+      job.payment.status === 'paid' || job.status === 'completed'
     );
     
     const pendingJobs = filteredJobs.filter(job => 
-      job.status === JobStatus.PENDING || job.status === JobStatus.ASSIGNED || job.status === JobStatus.IN_PROGRESS
+      job.status === 'pending' || job.status === 'assigned' || job.status === 'in-progress'
     );
 
-    const paidRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.total || 0), 0);
-    const pendingRevenue = pendingJobs.reduce((sum, job) => sum + (job.pricing.total || 0), 0);
+    const paidRevenue = paidJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
+    const pendingRevenue = pendingJobs.reduce((sum, job) => sum + (job.pricing.finalPrice || 0), 0);
     const totalRevenue = paidRevenue + pendingRevenue;
 
-    const jobValues = filteredJobs.map(job => job.pricing.total || 0).filter(value => value > 0);
+    const jobValues = filteredJobs.map(job => job.pricing.finalPrice || 0).filter(value => value > 0);
     const averageJobValue = jobValues.length > 0 ? jobValues.reduce((sum, value) => sum + value, 0) / jobValues.length : 0;
     const highestJobValue = jobValues.length > 0 ? Math.max(...jobValues) : 0;
     const lowestJobValue = jobValues.length > 0 ? Math.min(...jobValues) : 0;

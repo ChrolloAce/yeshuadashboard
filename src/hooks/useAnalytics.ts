@@ -96,13 +96,25 @@ export const useAnalytics = (): UseAnalyticsReturn => {
     loadAnalytics();
   }, [loadAnalytics]);
 
-  // Set up periodic refresh (every 30 seconds)
+  // Listen for real-time data updates
   useEffect(() => {
+    const handleDataUpdate = () => {
+      console.log('🔄 Analytics data update detected, refreshing...');
+      loadAnalytics();
+    };
+
+    // Listen for custom events from AnalyticsService
+    window.addEventListener('analytics-data-updated', handleDataUpdate);
+
+    // Also set up periodic refresh as backup (every 30 seconds)
     const interval = setInterval(() => {
       loadAnalytics();
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('analytics-data-updated', handleDataUpdate);
+      clearInterval(interval);
+    };
   }, [loadAnalytics]);
 
   return {

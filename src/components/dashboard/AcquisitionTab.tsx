@@ -47,10 +47,17 @@ export const AcquisitionTab: React.FC = () => {
       // Create job immediately (Book Now) - cast as complete BookingData since we validated it
       const job = await bookingService.bookNow(bookingData as any);
       
+      console.log('✅ Job created successfully:', job);
       alert(`Booking confirmed! Job #${job.id} has been created. The customer will receive a confirmation email shortly.`);
       
+      // Trigger analytics refresh
+      console.log('🔄 Triggering analytics refresh...');
+      window.dispatchEvent(new CustomEvent('analytics-data-updated'));
+      
       // Optionally refresh the page or reset the form
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); // Small delay to let analytics update
       
     } catch (error: any) {
       console.error('Booking failed:', error);
@@ -76,10 +83,17 @@ export const AcquisitionTab: React.FC = () => {
       // Send invoice (create quote and mark as sent) - cast as complete BookingData since we validated it
       const quote = await bookingService.sendInvoice(bookingData as any);
       
+      console.log('✅ Quote created successfully:', quote);
       alert(`Invoice sent successfully! Quote #${quote.id} has been created and sent to ${bookingData.contact?.email}.`);
       
+      // Trigger analytics refresh
+      console.log('🔄 Triggering analytics refresh...');
+      window.dispatchEvent(new CustomEvent('analytics-data-updated'));
+      
       // Optionally refresh the page or reset the form
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); // Small delay to let analytics update
       
     } catch (error: any) {
       console.error('Failed to send invoice:', error);
