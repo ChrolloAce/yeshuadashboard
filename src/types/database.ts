@@ -1,7 +1,86 @@
 // Database Types for Yeshua Cleaning Dashboard
 
+// Company and User Management
+export interface Company {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  logo?: string;
+  website?: string;
+  ownerId: string; // User ID of company owner
+  settings: {
+    timezone: string;
+    currency: string;
+    defaultServiceArea: string[];
+    branding: {
+      primaryColor: string;
+      secondaryColor: string;
+    };
+  };
+  subscription: {
+    plan: 'free' | 'basic' | 'pro' | 'enterprise';
+    status: 'active' | 'inactive' | 'suspended';
+    expiresAt?: Date;
+  };
+  inviteCode: string; // For cleaners to join
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  avatar?: string;
+  role: 'company_owner' | 'company_admin' | 'cleaner';
+  companyId?: string; // For cleaners and company employees
+  isActive: boolean;
+  permissions?: string[]; // For granular permissions
+  lastLoginAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CleanerProfile {
+  id: string;
+  userId: string;
+  companyId?: string; // Company they're currently working for
+  skills: string[];
+  certifications: string[];
+  hourlyRate?: number;
+  availability: {
+    monday: { start: string; end: string; available: boolean };
+    tuesday: { start: string; end: string; available: boolean };
+    wednesday: { start: string; end: string; available: boolean };
+    thursday: { start: string; end: string; available: boolean };
+    friday: { start: string; end: string; available: boolean };
+    saturday: { start: string; end: string; available: boolean };
+    sunday: { start: string; end: string; available: boolean };
+  };
+  rating: number;
+  totalJobs: number;
+  joinRequests: Array<{
+    companyId: string;
+    companyName: string;
+    status: 'pending' | 'accepted' | 'declined';
+    requestedAt: Date;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Client {
   id: string;
+  companyId: string; // Company this client belongs to
   email: string;
   firstName: string;
   lastName: string;
@@ -21,6 +100,7 @@ export interface Client {
 
 export interface Quote {
   id: string;
+  companyId: string; // Company this quote belongs to
   clientId: string;
   client: {
     email: string;
@@ -69,6 +149,7 @@ export interface Quote {
 
 export interface Job {
   id: string;
+  companyId: string; // Company this job belongs to
   quoteId?: string; // Reference to original quote if created from quote
   clientId: string;
   client: {
@@ -134,6 +215,7 @@ export interface Job {
 
 export interface Team {
   id: string;
+  companyId: string; // Company this team belongs to
   name: string;
   leaderId: string; // User ID of team leader
   members: string[]; // Array of User IDs
@@ -149,10 +231,16 @@ export type ServiceFrequency = 'one-time' | 'weekly' | 'bi-weekly' | 'monthly';
 export type QuoteStatus = 'pending' | 'sent' | 'accepted' | 'declined' | 'expired';
 export type JobStatus = 'pending' | 'confirmed' | 'assigned' | 'in-progress' | 'completed' | 'cancelled' | 'rescheduled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type UserRole = 'company_owner' | 'company_admin' | 'cleaner';
+export type CompanyPlan = 'free' | 'basic' | 'pro' | 'enterprise';
+export type SubscriptionStatus = 'active' | 'inactive' | 'suspended';
+export type JoinRequestStatus = 'pending' | 'accepted' | 'declined';
 
 // Database collection names
 export const COLLECTIONS = {
   USERS: 'users',
+  COMPANIES: 'companies',
+  CLEANER_PROFILES: 'cleaner_profiles',
   CLIENTS: 'clients', 
   QUOTES: 'quotes',
   JOBS: 'jobs',

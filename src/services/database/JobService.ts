@@ -39,6 +39,7 @@ export class JobService {
     try {
       const now = new Date();
       const job: Omit<Job, 'id'> = {
+        companyId: quote.companyId,
         quoteId: quote.id,
         clientId: quote.clientId,
         client: quote.client,
@@ -470,6 +471,7 @@ export class JobService {
   private convertFirestoreJob(id: string, data: DocumentData): Job {
     return {
       id,
+      companyId: data.companyId,
       quoteId: data.quoteId,
       clientId: data.clientId,
       client: data.client,

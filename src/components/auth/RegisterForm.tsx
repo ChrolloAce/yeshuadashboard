@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { RegisterData } from '@/services/auth/AuthService';
 
@@ -17,7 +17,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     firstName: '',
     lastName: '',
     phone: '',
-    role: 'customer' as const
+    role: 'company_owner' as const,
+    companyName: ''
   });
   
   const [showPassword, setShowPassword] = React.useState(false);
@@ -57,6 +58,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
       newErrors.phone = 'Phone format: (555) 123-4567';
     }
 
+    if (formData.role === 'company_owner' && !formData.companyName.trim()) {
+      newErrors.companyName = 'Company name is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -75,7 +80,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
-        phone: formData.phone || undefined
+        phone: formData.phone || undefined,
+        companyName: formData.role === 'company_owner' ? formData.companyName : undefined
       };
 
       await register(registerData);
@@ -267,6 +273,53 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
               <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
             )}
           </div>
+
+          {/* Role Selection */}
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+              Account Type
+            </label>
+            <div className="mt-1">
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange('role')}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+              >
+                <option value="company_owner">Company Owner</option>
+                <option value="cleaner">Cleaner</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Company Name (only for company owners) */}
+          {formData.role === 'company_owner' && (
+            <div>
+              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
+                Company Name
+              </label>
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Building2 className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  value={formData.companyName}
+                  onChange={handleInputChange('companyName')}
+                  className={`appearance-none relative block w-full pl-10 pr-3 py-3 border ${
+                    errors.companyName ? 'border-red-300' : 'border-gray-300'
+                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm`}
+                  placeholder="Enter your company name"
+                />
+              </div>
+              {errors.companyName && (
+                <p className="mt-1 text-sm text-red-600">{errors.companyName}</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">

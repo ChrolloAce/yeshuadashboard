@@ -14,18 +14,22 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { COLLECTIONS } from '@/types/database';
 
 export interface UserProfile {
   uid: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'cleaner' | 'customer';
+  role: 'company_owner' | 'company_admin' | 'cleaner';
   phone?: string;
   avatar?: string;
-  teamId?: string;
+  companyId?: string;
+  isActive: boolean;
+  permissions?: string[];
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,9 +44,12 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'cleaner' | 'customer';
+  role: 'company_owner' | 'cleaner';
   phone?: string;
-  teamId?: string;
+  // For company owners
+  companyName?: string;
+  // For cleaners
+  inviteCode?: string;
 }
 
 export class AuthService {
@@ -98,14 +105,22 @@ export class AuthService {
             email: user.email,
             firstName,
             lastName,
-            role: 'customer' as const,
+            role: 'company_owner' as const, // Default to company owner for Google sign-ins
             avatar: user.photoURL || undefined,
+            isActive: true,
+            permissions: [],
+            lastLoginAt: new Date(),
             createdAt: new Date(),
             updatedAt: new Date()
           };
 
           try {
-            await setDoc(doc(db, 'users', user.uid), basicProfile);
+            await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+              ...basicProfile,
+              createdAt: Timestamp.fromDate(basicProfile.createdAt),
+              updatedAt: Timestamp.fromDate(basicProfile.updatedAt),
+              lastLoginAt: Timestamp.fromDate(basicProfile.lastLoginAt!)
+            });
             this.userProfile = basicProfile;
             console.log('Basic user profile created');
           } catch (error) {
@@ -133,26 +148,7 @@ export class AuthService {
     return AuthService.instance;
   }
 
-  private async loadUserProfile(uid: string): Promise<UserProfile | null> {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        const profile = {
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-        } as UserProfile;
-        
-        this.userProfile = profile;
-        return profile;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-      return null;
-    }
-  }
+
 
   public async login(credentials: LoginCredentials): Promise<UserProfile> {
     try {
@@ -199,8 +195,11 @@ export class AuthService {
         email: user.email || '',
         firstName,
         lastName,
-        role: 'customer',
+        role: 'company_owner', // Default to company owner for Google sign-ins
         avatar: user.photoURL || undefined,
+        isActive: true,
+        permissions: [],
+        lastLoginAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -264,6 +263,53 @@ export class AuthService {
         displayName: `${data.firstName} ${data.lastName}`
       });
 
+      let companyId: string | undefined;
+
+      // Handle company owner registration
+      if (data.role === 'company_owner') {
+        if (!data.companyName) {
+          throw new Error('Company name is required for company owners');
+        }
+
+        // Create company
+        const { CompanyService } = await import('../company/CompanyService');
+        const companyService = CompanyService.getInstance();
+        
+        const company = await companyService.createCompany({
+          name: data.companyName,
+          email: data.email,
+          phone: data.phone,
+          ownerId: user.uid
+        });
+
+        companyId = company.id;
+      }
+
+      // Handle cleaner registration
+      if (data.role === 'cleaner') {
+        // Validate invite code if provided
+        if (data.inviteCode) {
+          const { CompanyService } = await import('../company/CompanyService');
+          const companyService = CompanyService.getInstance();
+          
+          const company = await companyService.getCompanyByInviteCode(data.inviteCode);
+          if (company) {
+            companyId = company.id;
+          } else {
+            throw new Error('Invalid invite code');
+          }
+        }
+
+        // Create cleaner profile
+        const { CleanerService } = await import('../cleaner/CleanerService');
+        const cleanerService = CleanerService.getInstance();
+        
+        await cleanerService.createCleanerProfile(user.uid, {
+          skills: [],
+          certifications: [],
+        });
+      }
+
       // Create user profile in Firestore
       const userProfile: UserProfile = {
         uid: user.uid,
@@ -272,21 +318,26 @@ export class AuthService {
         lastName: data.lastName,
         role: data.role,
         phone: data.phone,
-        teamId: data.teamId,
+        companyId,
+        isActive: true,
+        permissions: [],
+        lastLoginAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      await setDoc(doc(db, 'users', user.uid), {
+      await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
         ...userProfile,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: Timestamp.fromDate(userProfile.createdAt),
+        updatedAt: Timestamp.fromDate(userProfile.updatedAt),
+        lastLoginAt: Timestamp.fromDate(userProfile.lastLoginAt!)
       });
 
       this.userProfile = userProfile;
       return userProfile;
     } catch (error: any) {
-      throw new Error(this.getAuthErrorMessage(error.code));
+      console.error('Registration error:', error);
+      throw new Error(error.message || this.getAuthErrorMessage(error.code));
     }
   }
 
@@ -372,17 +423,32 @@ export class AuthService {
     return this.userProfile?.role === role;
   }
 
-  public isAdmin(): boolean {
-    return this.hasRole('admin');
+  public isCompanyOwner(): boolean {
+    return this.hasRole('company_owner');
+  }
+
+  public isCompanyAdmin(): boolean {
+    return this.hasRole('company_admin');
   }
 
   public isCleaner(): boolean {
     return this.hasRole('cleaner');
   }
 
-  public isCustomer(): boolean {
-    return this.hasRole('customer');
+  public isCompanyUser(): boolean {
+    return this.isCompanyOwner() || this.isCompanyAdmin();
   }
+
+  public hasCompany(): boolean {
+    return !!this.userProfile?.companyId;
+  }
+
+  // Legacy method for backward compatibility
+  public isAdmin(): boolean {
+    return this.isCompanyOwner() || this.isCompanyAdmin();
+  }
+
+
 
   public isAuthInitialized(): boolean {
     return this.isInitialized;
@@ -402,6 +468,32 @@ export class AuthService {
     this.listeners.forEach(listener => {
       listener(this.currentUser, this.userProfile);
     });
+  }
+
+  private async loadUserProfile(userId: string): Promise<UserProfile | null> {
+    try {
+      const docRef = doc(db, COLLECTIONS.USERS, userId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return null;
+      }
+
+      const data = docSnap.data();
+      const profile: UserProfile = {
+        ...data,
+        uid: docSnap.id,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+        lastLoginAt: data.lastLoginAt?.toDate()
+      } as UserProfile;
+
+      this.userProfile = profile;
+      return profile;
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      return null;
+    }
   }
 
   private getAuthErrorMessage(errorCode: string): string {

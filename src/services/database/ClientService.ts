@@ -32,16 +32,17 @@ export class ClientService {
   }
 
   // Create a new client from booking data
-  public async createClient(bookingData: BookingData): Promise<Client> {
+  public async createClient(bookingData: BookingData, companyId: string): Promise<Client> {
     try {
-      // Check if client already exists by email
-      const existingClient = await this.getClientByEmail(bookingData.contact.email);
+      // Check if client already exists by email within this company
+      const existingClient = await this.getClientByEmailAndCompany(bookingData.contact.email, companyId);
       if (existingClient) {
         return existingClient;
       }
 
       const now = new Date();
       const client: Omit<Client, 'id'> = {
+        companyId,
         email: bookingData.contact.email,
         firstName: bookingData.contact.firstName,
         lastName: bookingData.contact.lastName,
@@ -75,7 +76,38 @@ export class ClientService {
     }
   }
 
-  // Get client by email
+  // Get client by email and company (for multi-tenant support)
+  public async getClientByEmailAndCompany(email: string, companyId: string): Promise<Client | null> {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.CLIENTS),
+        where('email', '==', email),
+        where('companyId', '==', companyId),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate()
+      } as Client;
+    } catch (error) {
+      console.error('Error getting client by email and company:', error);
+      return null;
+    }
+  }
+
+  // Get client by email (legacy method - now searches across all companies)
   public async getClientByEmail(email: string): Promise<Client | null> {
     try {
       const q = query(
@@ -280,6 +312,7 @@ export class ClientService {
   private convertFirestoreClient(id: string, data: DocumentData): Client {
     return {
       id,
+      companyId: data.companyId,
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,

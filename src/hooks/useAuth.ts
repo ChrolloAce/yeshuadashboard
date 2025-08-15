@@ -113,8 +113,11 @@ export const useAuth = () => {
     error,
     isAuthenticated: !loading && !!user, // Only consider authenticated after loading is complete
     isAdmin: !loading && authService.isAdmin(),
+    isCompanyOwner: !loading && authService.isCompanyOwner(),
+    isCompanyAdmin: !loading && authService.isCompanyAdmin(),
     isCleaner: !loading && authService.isCleaner(),
-    isCustomer: !loading && authService.isCustomer(),
+    isCompanyUser: !loading && authService.isCompanyUser(),
+    hasCompany: !loading && authService.hasCompany(),
     login,
     loginWithGoogle,
     register,

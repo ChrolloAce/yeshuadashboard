@@ -33,7 +33,7 @@ export class QuoteService {
   }
 
   // Create a new quote from booking data
-  public async createQuote(bookingData: BookingData): Promise<Quote> {
+  public async createQuote(bookingData: BookingData, companyId: string): Promise<Quote> {
     try {
       const now = new Date();
       const expiresAt = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days from now
@@ -42,6 +42,7 @@ export class QuoteService {
       const pricingBreakdown = this.calculatePricing(bookingData);
 
       const quote: Omit<Quote, 'id'> = {
+        companyId,
         clientId: '', // Will be set after client creation
         client: {
           email: bookingData.contact.email,
@@ -381,6 +382,7 @@ export class QuoteService {
   private convertFirestoreQuote(id: string, data: DocumentData): Quote {
     return {
       id,
+      companyId: data.companyId,
       clientId: data.clientId,
       client: data.client,
       service: data.service,

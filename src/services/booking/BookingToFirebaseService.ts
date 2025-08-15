@@ -40,8 +40,17 @@ export class BookingToFirebaseService {
     try {
       console.log('Processing booking submission...', bookingData);
 
+      // Get current user's company ID
+      const { AuthService } = await import('../auth/AuthService');
+      const authService = AuthService.getInstance();
+      const userProfile = authService.getUserProfile();
+      
+      if (!userProfile?.companyId) {
+        throw new Error('User must be associated with a company to create bookings');
+      }
+
       // Step 1: Create or get existing client
-      const client = await this.clientService.createClient(bookingData);
+      const client = await this.clientService.createClient(bookingData, userProfile.companyId);
       console.log('Client created/found:', client.id);
 
       let quote: Quote | undefined;
@@ -49,7 +58,7 @@ export class BookingToFirebaseService {
 
       if (!options.skipQuote) {
         // Step 2: Create quote
-        quote = await this.quoteService.createQuote(bookingData);
+        quote = await this.quoteService.createQuote(bookingData, userProfile.companyId);
         quote.clientId = client.id; // Link quote to client
         
         // Update quote with client ID
@@ -63,7 +72,7 @@ export class BookingToFirebaseService {
           job = await this.jobService.createJobFromQuote(quote);
         } else {
           // Create job directly from booking data
-          job = await this.createJobDirectlyFromBooking(bookingData, client);
+          job = await this.createJobDirectlyFromBooking(bookingData, client, userProfile.companyId);
         }
         console.log('Job created:', job?.id);
       }
@@ -79,12 +88,17 @@ export class BookingToFirebaseService {
     }
   }
 
+
+
+
+
   /**
    * Create a job directly from booking data without a quote
    */
   private async createJobDirectlyFromBooking(
     bookingData: BookingData,
-    client: Client
+    client: Client,
+    companyId: string
   ): Promise<Job> {
     const now = new Date();
     
@@ -92,6 +106,7 @@ export class BookingToFirebaseService {
     const pricingBreakdown = this.calculatePricing(bookingData);
 
     const jobData: Omit<Job, 'id' | 'createdAt' | 'updatedAt'> = {
+      companyId,
       clientId: client.id,
       client: {
         email: client.email,
