@@ -61,7 +61,8 @@ export class JobService {
         updatedAt: now
       };
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.JOBS), {
+      // Filter out undefined values for Firestore
+      const firestoreData = this.cleanDataForFirestore({
         ...job,
         createdAt: Timestamp.fromDate(job.createdAt),
         updatedAt: Timestamp.fromDate(job.updatedAt),
@@ -70,6 +71,8 @@ export class JobService {
           date: Timestamp.fromDate(job.schedule.date)
         }
       });
+
+      const docRef = await addDoc(collection(db, COLLECTIONS.JOBS), firestoreData);
 
       // Update client statistics
       await this.updateClientJobStats(quote.clientId);
@@ -94,22 +97,25 @@ export class JobService {
         updatedAt: now
       };
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.JOBS), {
+      // Filter out undefined values for Firestore
+      const firestoreData = this.cleanDataForFirestore({
         ...job,
         createdAt: Timestamp.fromDate(job.createdAt),
         updatedAt: Timestamp.fromDate(job.updatedAt),
         schedule: {
           ...job.schedule,
           date: Timestamp.fromDate(job.schedule.date),
-          actualStartTime: job.schedule.actualStartTime ? Timestamp.fromDate(job.schedule.actualStartTime) : undefined,
-          actualEndTime: job.schedule.actualEndTime ? Timestamp.fromDate(job.schedule.actualEndTime) : undefined
+          actualStartTime: job.schedule.actualStartTime ? Timestamp.fromDate(job.schedule.actualStartTime) : null,
+          actualEndTime: job.schedule.actualEndTime ? Timestamp.fromDate(job.schedule.actualEndTime) : null
         },
-        completedAt: job.completedAt ? Timestamp.fromDate(job.completedAt) : undefined,
+        completedAt: job.completedAt ? Timestamp.fromDate(job.completedAt) : null,
         payment: {
           ...job.payment,
-          paidAt: job.payment.paidAt ? Timestamp.fromDate(job.payment.paidAt) : undefined
+          paidAt: job.payment.paidAt ? Timestamp.fromDate(job.payment.paidAt) : null
         }
       });
+
+      const docRef = await addDoc(collection(db, COLLECTIONS.JOBS), firestoreData);
 
       // Update client statistics
       await this.updateClientJobStats(jobData.clientId);
@@ -494,5 +500,28 @@ export class JobService {
       rating: data.rating,
       review: data.review
     };
+  }
+
+  // Helper method to remove undefined values for Firestore
+  private cleanDataForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanDataForFirestore(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = this.cleanDataForFirestore(value);
+        }
+      }
+      return cleaned;
+    }
+    
+    return obj;
   }
 }

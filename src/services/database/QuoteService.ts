@@ -83,7 +83,8 @@ export class QuoteService {
         expiresAt
       };
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.QUOTES), {
+      // Filter out undefined values for Firestore
+      const firestoreData = this.cleanDataForFirestore({
         ...quote,
         createdAt: Timestamp.fromDate(quote.createdAt),
         updatedAt: Timestamp.fromDate(quote.updatedAt),
@@ -93,6 +94,8 @@ export class QuoteService {
           date: Timestamp.fromDate(quote.schedule.date)
         }
       });
+
+      const docRef = await addDoc(collection(db, COLLECTIONS.QUOTES), firestoreData);
 
       return {
         id: docRef.id,
@@ -397,5 +400,28 @@ export class QuoteService {
       respondedAt: data.respondedAt?.toDate(),
       expiresAt: data.expiresAt.toDate()
     };
+  }
+
+  // Helper method to remove undefined values for Firestore
+  private cleanDataForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanDataForFirestore(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = this.cleanDataForFirestore(value);
+        }
+      }
+      return cleaned;
+    }
+    
+    return obj;
   }
 }
