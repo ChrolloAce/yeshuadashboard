@@ -86,19 +86,24 @@ export class AuthService {
     return AuthService.instance;
   }
 
-  private async loadUserProfile(uid: string): Promise<void> {
+  private async loadUserProfile(uid: string): Promise<UserProfile | null> {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        this.userProfile = {
+        const profile = {
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
         } as UserProfile;
+        
+        this.userProfile = profile;
+        return profile;
       }
+      return null;
     } catch (error) {
       console.error('Error loading user profile:', error);
+      return null;
     }
   }
 
@@ -125,45 +130,67 @@ export class AuthService {
   public async loginWithGoogle(): Promise<UserProfile> {
     try {
       console.log('Starting Google sign-in...');
-      const result = await signInWithPopup(auth, this.googleProvider);
+      
+      // Use signInWithPopup with timeout
+      const result = await Promise.race([
+        signInWithPopup(auth, this.googleProvider),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Google sign-in timeout')), 30000)
+        )
+      ]);
+      
       const user = result.user;
       console.log('Google sign-in successful:', user.uid);
 
-      // Check if user profile exists
-      await this.loadUserProfile(user.uid);
+      // Optimistically set user profile from Google data
+      const names = (user.displayName || '').split(' ');
+      const firstName = names[0] || '';
+      const lastName = names.slice(1).join(' ') || '';
 
-      // If no profile exists, create one with default role
-      if (!this.userProfile) {
-        console.log('Creating new user profile...');
-        const names = (user.displayName || '').split(' ');
-        const firstName = names[0] || '';
-        const lastName = names.slice(1).join(' ') || '';
+      const tempProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        firstName,
+        lastName,
+        role: 'customer',
+        avatar: user.photoURL || undefined,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-        const userProfile: UserProfile = {
-          uid: user.uid,
-          email: user.email || '',
-          firstName,
-          lastName,
-          role: 'customer', // Default role for Google sign-ups
-          avatar: user.photoURL || undefined,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+      // Set profile immediately for faster UI response
+      this.userProfile = tempProfile;
+      this.notifyListeners();
 
-        await setDoc(doc(db, 'users', user.uid), userProfile);
-        this.userProfile = userProfile;
-        console.log('User profile created successfully');
-      } else {
-        console.log('Existing user profile loaded');
+      // Check if user profile exists in background
+      try {
+        const existingProfile = await this.loadUserProfile(user.uid);
+        if (!existingProfile) {
+          console.log('Creating new user profile in background...');
+          // Create profile in background without blocking UI
+          setDoc(doc(db, 'users', user.uid), tempProfile).catch(error => {
+            console.error('Failed to save user profile:', error);
+          });
+        }
+      } catch (error) {
+        console.warn('Profile check failed, using temporary profile:', error);
       }
 
       return this.userProfile;
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       
-      // Handle popup blocked or closed
+      // Handle specific errors
+      if (error.message === 'Google sign-in timeout') {
+        throw new Error('Google sign-in is taking too long. Please try again.');
+      }
+      
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
         throw new Error('Google sign-in was blocked. Please allow popups and try again.');
+      }
+      
+      if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your connection and try again.');
       }
       
       throw new Error(this.getAuthErrorMessage(error.code));
