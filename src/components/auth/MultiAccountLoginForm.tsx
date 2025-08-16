@@ -124,12 +124,9 @@ export const MultiAccountLoginForm: React.FC<MultiAccountLoginFormProps> = ({
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
                     className="pl-10"
-                    error={!!validationErrors.email}
+                    error={validationErrors.email}
                   />
                 </div>
-                {validationErrors.email && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
-                )}
               </div>
 
               {/* Password Field */}
@@ -147,7 +144,7 @@ export const MultiAccountLoginForm: React.FC<MultiAccountLoginFormProps> = ({
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     className="pl-10 pr-10"
-                    error={!!validationErrors.password}
+                    error={validationErrors.password}
                   />
                   <button
                     type="button"
@@ -161,9 +158,6 @@ export const MultiAccountLoginForm: React.FC<MultiAccountLoginFormProps> = ({
                     )}
                   </button>
                 </div>
-                {validationErrors.password && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
-                )}
               </div>
 
               {/* Submit Button */}
