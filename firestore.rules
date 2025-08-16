@@ -68,12 +68,9 @@ service cloud.firestore {
 
     // Cleaner profiles - cleaners can manage their own, company admins can read their company's cleaners
     match /cleaner_profiles/{cleanerId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == cleanerId ||
-        (isCompanyAdmin() && resource.data.companyId == getUserCompanyId())
-      );
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.uid == cleanerId;
-      allow create: if isAuthenticated() && request.auth.uid == resource.id;
+      allow create: if isAuthenticated(); // Allow any authenticated user to create cleaner profiles
     }
 
     // Clients collection - company-scoped access
@@ -110,10 +107,10 @@ service cloud.firestore {
       allow create: if isAuthenticated() && belongsToSameCompany(request.resource.data.companyId) && isCompanyAdmin();
     }
 
-    // Teams collection - company-scoped access
+    // Teams collection - allow team member additions during registration
     match /teams/{teamId} {
-      allow read: if isAuthenticated() && belongsToSameCompany(resource.data.companyId);
-      allow write: if isAuthenticated() && belongsToSameCompany(resource.data.companyId) && isCompanyAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // Allow any authenticated user to update teams (for joining process)
       allow create: if isAuthenticated() && belongsToSameCompany(request.resource.data.companyId) && isCompanyAdmin();
     }
 
