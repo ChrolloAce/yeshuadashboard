@@ -32,7 +32,8 @@ export default function JoinTeamPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<'validate' | 'register' | 'success'>('validate');
+  const [step, setStep] = useState<'validate' | 'register' | 'login' | 'success'>('validate');
+  const [showLoginOption, setShowLoginOption] = useState(false);
   
   const [registrationData, setRegistrationData] = useState<CleanerRegistrationData>({
     firstName: '',
@@ -58,27 +59,39 @@ export default function JoinTeamPage() {
       setLoading(true);
       setError(null);
 
+      console.log('🔍 Validating invite code:', inviteCode);
+
       const inviteData = await teamService.getInviteByCode(inviteCode);
       
+      console.log('📋 Invite data received:', inviteData);
+      
       if (!inviteData) {
+        console.error('❌ No invite data found for code:', inviteCode);
         setError('Invalid or expired invitation link');
         return;
       }
 
       if (inviteData.isUsed) {
+        console.error('❌ Invite already used:', inviteData);
         setError('This invitation has already been used');
         return;
       }
 
       if (inviteData.expiresAt < new Date()) {
+        console.error('❌ Invite expired:', inviteData.expiresAt);
         setError('This invitation has expired');
         return;
       }
 
       setInvite(inviteData);
 
+      console.log('🏢 Fetching company data for:', inviteData.companyId);
+      
       // Get company details
       const companyData = await companyService.getCompany(inviteData.companyId);
+      
+      console.log('🏢 Company data received:', companyData);
+      
       setCompany(companyData);
 
       // Pre-fill email if provided in invite
@@ -86,10 +99,24 @@ export default function JoinTeamPage() {
         setRegistrationData(prev => ({ ...prev, email: inviteData.email! }));
       }
 
+      console.log('✅ Invite validation successful');
       setStep('register');
     } catch (err: any) {
-      console.error('Error validating invite:', err);
-      setError(err.message || 'Failed to validate invitation');
+      console.error('💥 Error validating invite:', err);
+      console.error('💥 Error details:', {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      });
+      
+      // More specific error messages
+      if (err.code === 'permission-denied') {
+        setError('Permission denied. Please check the invitation link and try again.');
+      } else if (err.code === 'not-found') {
+        setError('Invitation not found. The link may be invalid or expired.');
+      } else {
+        setError(err.message || 'Failed to validate invitation. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,7 +170,64 @@ export default function JoinTeamPage() {
       setStep('success');
     } catch (err: any) {
       console.error('Error registering cleaner:', err);
-      setError(err.message || 'Failed to register. Please try again.');
+      
+      // Handle email already in use error - but now we support multiple accounts
+      if (err.message.includes('email-already-in-use') || err.message.includes('already in use')) {
+        // This shouldn't happen with our new system, but if it does, show login option
+        setShowLoginOption(true);
+        setError('This email is already registered. Please sign in with your existing account to join this team.');
+      } else {
+        setError(err.message || 'Failed to register. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      if (!registrationData.email || !registrationData.password) {
+        setError('Please enter your email and password');
+        return;
+      }
+
+      if (!invite) {
+        setError('Invalid invitation');
+        return;
+      }
+
+      // Login the user
+      const userProfile = await authService.login({
+        email: registrationData.email,
+        password: registrationData.password
+      });
+
+      // Check if user is already part of this company
+      if (userProfile.companyId === invite.companyId) {
+        setError('You are already a member of this company');
+        return;
+      }
+
+      // Update user's company affiliation
+      await authService.updateUserProfile({
+        companyId: invite.companyId
+      });
+
+      // Mark invite as used
+      await teamService.useInvite(invite.id, userProfile.uid);
+
+      // If invite was for a specific team, add user to team
+      if (invite.teamId) {
+        await teamService.addMemberToTeam(invite.teamId, userProfile.uid);
+      }
+
+      setStep('success');
+    } catch (err: any) {
+      console.error('Error logging in cleaner:', err);
+      setError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {
       setSubmitting(false);
     }
@@ -245,7 +329,38 @@ export default function JoinTeamPage() {
 
         {/* Registration Form */}
         <ThemedCard className="p-6">
-          <form onSubmit={(e) => { e.preventDefault(); handleRegister(); }}>
+          {showLoginOption && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-sm mb-3">
+                This email is already registered. Choose an option:
+              </p>
+              <div className="flex space-x-2">
+                <ThemedButton
+                  variant={step === 'login' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setStep('login')}
+                >
+                  Sign In
+                </ThemedButton>
+                <ThemedButton
+                  variant={step === 'register' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setStep('register');
+                    setShowLoginOption(false);
+                    setError(null);
+                  }}
+                >
+                  Use Different Email
+                </ThemedButton>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={(e) => { 
+            e.preventDefault(); 
+            step === 'login' ? handleLogin() : handleRegister(); 
+          }}>
             <div className="space-y-4">
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -253,32 +368,34 @@ export default function JoinTeamPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name *
-                  </label>
-                  <ThemedInput
-                    type="text"
-                    value={registrationData.firstName}
-                    onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
-                    placeholder="John"
-                    required
-                  />
+              {step === 'register' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name *
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={registrationData.firstName}
+                      onChange={(e) => setRegistrationData(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="John"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name *
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={registrationData.lastName}
+                      onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="Doe"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name *
-                  </label>
-                  <ThemedInput
-                    type="text"
-                    value={registrationData.lastName}
-                    onChange={(e) => setRegistrationData(prev => ({ ...prev, lastName: e.target.value }))}
-                    placeholder="Doe"
-                    required
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -294,17 +411,19 @@ export default function JoinTeamPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone (Optional)
-                </label>
-                <ThemedInput
-                  type="tel"
-                  value={registrationData.phone}
-                  onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
+              {step === 'register' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone (Optional)
+                  </label>
+                  <ThemedInput
+                    type="tel"
+                    value={registrationData.phone}
+                    onChange={(e) => setRegistrationData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -319,35 +438,39 @@ export default function JoinTeamPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm Password *
-                </label>
-                <ThemedInput
-                  type="password"
-                  value={registrationData.confirmPassword}
-                  onChange={(e) => setRegistrationData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+              {step === 'register' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password *
+                  </label>
+                  <ThemedInput
+                    type="password"
+                    value={registrationData.confirmPassword}
+                    onChange={(e) => setRegistrationData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hourly Rate (Optional)
-                </label>
-                <ThemedInput
-                  type="number"
-                  value={registrationData.hourlyRate || ''}
-                  onChange={(e) => setRegistrationData(prev => ({ 
-                    ...prev, 
-                    hourlyRate: e.target.value ? parseFloat(e.target.value) : undefined 
-                  }))}
-                  placeholder="25.00"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
+              {step === 'register' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hourly Rate (Optional)
+                  </label>
+                  <ThemedInput
+                    type="number"
+                    value={registrationData.hourlyRate || ''}
+                    onChange={(e) => setRegistrationData(prev => ({ 
+                      ...prev, 
+                      hourlyRate: e.target.value ? parseFloat(e.target.value) : undefined 
+                    }))}
+                    placeholder="25.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              )}
             </div>
 
             <ThemedButton
@@ -359,12 +482,14 @@ export default function JoinTeamPage() {
               {submitting ? (
                 <div className="flex items-center">
                   <LoadingSpinner size="sm" />
-                  <span className="ml-2">Creating Account...</span>
+                  <span className="ml-2">
+                    {step === 'login' ? 'Signing In...' : 'Creating Account...'}
+                  </span>
                 </div>
               ) : (
                 <>
                   <UserCheck className="w-4 h-4 mr-2" />
-                  Join Team
+                  {step === 'login' ? 'Sign In & Join Team' : 'Join Team'}
                 </>
               )}
             </ThemedButton>

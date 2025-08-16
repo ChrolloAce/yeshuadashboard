@@ -146,20 +146,18 @@ service cloud.firestore {
       allow delete: if false; // No deletes allowed
     }
 
-    // Teams - company members can read/write teams in their company
-    match /teams/{teamId} {
-      allow read, write: if isAuthenticated() && 
-        belongsToSameCompany(resource.data.companyId);
-      allow create: if isAuthenticated();
+    // Team invites - allow public read access for invite validation
+    match /team_invites/{inviteId} {
+      allow read: if true; // Anyone can read individual invites to validate codes
+      allow list: if true; // Allow querying invites by code (needed for invite validation)
+      allow create: if isAuthenticated() && belongsToSameCompany(request.resource.data.companyId);
+      allow update: if isAuthenticated(); // For marking invites as used
+      allow delete: if isAuthenticated() && belongsToSameCompany(resource.data.companyId);
     }
 
-    // Team invites - allow authenticated users to create/read
-    match /team_invites/{inviteId} {
-      allow read: if true; // Anyone can read to validate invite codes
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // For marking invites as used
-      allow delete: if isAuthenticated() && 
-        belongsToSameCompany(resource.data.companyId);
+    // Multi-account preferences - users can manage their own account preferences
+    match /multi_accounts/{accountId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Audit logs - company owners can read their company's logs

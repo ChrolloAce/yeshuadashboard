@@ -310,37 +310,54 @@ export class TeamService {
    */
   public async getInviteByCode(inviteCode: string): Promise<TeamInvite | null> {
     try {
+      console.log('🔍 TeamService: Searching for invite code:', inviteCode);
+      
       const q = query(
         collection(db, 'team_invites'),
         where('inviteCode', '==', inviteCode),
         where('isUsed', '==', false)
       );
 
+      console.log('📡 TeamService: Executing Firestore query...');
       const querySnapshot = await getDocs(q);
       
+      console.log('📊 TeamService: Query result - docs found:', querySnapshot.size);
+      
       if (querySnapshot.empty) {
+        console.log('❌ TeamService: No matching invites found');
         return null;
       }
 
-      const doc = querySnapshot.docs[0];
-      const data = doc.data();
+      const docSnap = querySnapshot.docs[0];
+      const data = docSnap.data();
+      
+      console.log('📋 TeamService: Raw invite data:', data);
       
       const invite: TeamInvite = {
         ...data,
-        id: doc.id,
+        id: docSnap.id,
         expiresAt: data.expiresAt.toDate(),
         createdAt: data.createdAt.toDate(),
         usedAt: data.usedAt?.toDate()
       } as TeamInvite;
 
+      console.log('📅 TeamService: Processed invite:', invite);
+
       // Check if expired
       if (invite.expiresAt < new Date()) {
+        console.log('⏰ TeamService: Invite expired:', invite.expiresAt);
         return null;
       }
 
+      console.log('✅ TeamService: Valid invite found');
       return invite;
     } catch (error) {
-      console.error('Error getting invite by code:', error);
+      console.error('💥 TeamService: Error getting invite by code:', error);
+      console.error('💥 TeamService: Error details:', {
+        message: (error as any).message,
+        code: (error as any).code,
+        stack: (error as any).stack
+      });
       throw error;
     }
   }

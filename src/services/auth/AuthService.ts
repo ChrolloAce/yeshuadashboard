@@ -61,6 +61,7 @@ export class AuthService {
   private googleProvider!: GoogleAuthProvider;
   private isInitialized: boolean = false;
   private analyticsScheduler: AnalyticsScheduler;
+  private pendingAccountSelection: { email: string; password: string } | null = null;
 
   private constructor() {
     this.analyticsScheduler = AnalyticsScheduler.getInstance();
@@ -197,8 +198,24 @@ export class AuthService {
 
 
 
-  public async login(credentials: LoginCredentials): Promise<UserProfile> {
+  public async login(credentials: LoginCredentials): Promise<UserProfile | 'MULTIPLE_ACCOUNTS'> {
     try {
+      // First check if there are multiple accounts for this email
+      const { MultiAccountService } = await import('./MultiAccountService');
+      const multiAccountService = MultiAccountService.getInstance();
+      
+      const accounts = await multiAccountService.getAccountsByEmail(credentials.email);
+      
+      if (accounts.length > 1) {
+        // Store credentials for later use after account selection
+        this.pendingAccountSelection = {
+          email: credentials.email,
+          password: credentials.password
+        };
+        return 'MULTIPLE_ACCOUNTS';
+      }
+      
+      // Single account - proceed with normal login
       const userCredential = await signInWithEmailAndPassword(
         auth, 
         credentials.email, 
@@ -215,6 +232,68 @@ export class AuthService {
     } catch (error: any) {
       throw new Error(this.getAuthErrorMessage(error.code));
     }
+  }
+
+  /**
+   * Get accounts for email during multi-account selection
+   */
+  public async getAccountsForPendingLogin(): Promise<any[]> {
+    if (!this.pendingAccountSelection) {
+      throw new Error('No pending account selection');
+    }
+
+    const { MultiAccountService } = await import('./MultiAccountService');
+    const multiAccountService = MultiAccountService.getInstance();
+    
+    return multiAccountService.getAccountsByEmail(this.pendingAccountSelection.email);
+  }
+
+  /**
+   * Complete login with selected account
+   */
+  public async loginWithSelectedAccount(selectedAccountUid: string): Promise<UserProfile> {
+    if (!this.pendingAccountSelection) {
+      throw new Error('No pending account selection');
+    }
+
+    try {
+      // Verify password with Firebase Auth (we can't directly login to specific account, 
+      // so we'll verify the password and then load the selected profile)
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        this.pendingAccountSelection.email,
+        this.pendingAccountSelection.password
+      );
+
+      // Load the selected user profile instead of the default one
+      await this.loadUserProfile(selectedAccountUid);
+      
+      if (!this.userProfile) {
+        throw new Error('Selected user profile not found');
+      }
+
+      // Update last login and save preference
+      const { MultiAccountService } = await import('./MultiAccountService');
+      const multiAccountService = MultiAccountService.getInstance();
+      
+      await multiAccountService.updateAccountLastLogin(selectedAccountUid);
+      await multiAccountService.setLastSelectedAccount(this.pendingAccountSelection.email, selectedAccountUid);
+
+      // Clear pending selection
+      this.pendingAccountSelection = null;
+
+      return this.userProfile;
+    } catch (error: any) {
+      this.pendingAccountSelection = null;
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+
+  /**
+   * Cancel account selection
+   */
+  public cancelAccountSelection(): void {
+    this.pendingAccountSelection = null;
   }
 
   public async loginWithGoogle(): Promise<UserProfile> {
@@ -352,11 +431,33 @@ export class AuthService {
 
   public async register(data: RegisterData): Promise<UserProfile> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      );
+      // Check if email already exists in our users collection
+      const { MultiAccountService } = await import('./MultiAccountService');
+      const multiAccountService = MultiAccountService.getInstance();
+      
+      const existingAccounts = await multiAccountService.getAccountsByEmail(data.email);
+      
+      // Allow multiple accounts per email - each with different roles/companies
+      let userCredential;
+      
+      if (existingAccounts.length > 0) {
+        // Email exists in our system but we'll create a new Firebase Auth account
+        // by using a modified email for Firebase Auth (but store original email in profile)
+        const modifiedEmail = `${data.email.split('@')[0]}+account${existingAccounts.length + 1}@${data.email.split('@')[1]}`;
+        
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          modifiedEmail,
+          data.password
+        );
+      } else {
+        // First account with this email
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          data.email,
+          data.password
+        );
+      }
 
       const user = userCredential.user;
 
@@ -389,16 +490,25 @@ export class AuthService {
 
       // Handle cleaner registration
       if (data.role === 'cleaner') {
-        // Validate invite code if provided
+        // Validate team invite code if provided
         if (data.inviteCode) {
-          const { CompanyService } = await import('../company/CompanyService');
-          const companyService = CompanyService.getInstance();
+          const { TeamService } = await import('../team/TeamService');
+          const teamService = TeamService.getInstance();
           
-          const company = await companyService.getCompanyByInviteCode(data.inviteCode);
-          if (company) {
-            companyId = company.id;
+          const invite = await teamService.getInviteByCode(data.inviteCode);
+          if (invite && !invite.isUsed && invite.expiresAt > new Date()) {
+            companyId = invite.companyId;
           } else {
-            throw new Error('Invalid invite code');
+            // Fallback to company invite code for backward compatibility
+            const { CompanyService } = await import('../company/CompanyService');
+            const companyService = CompanyService.getInstance();
+            
+            const company = await companyService.getCompanyByInviteCode(data.inviteCode);
+            if (company) {
+              companyId = company.id;
+            } else {
+              throw new Error('Invalid or expired invite code');
+            }
           }
         }
 
@@ -412,10 +522,10 @@ export class AuthService {
         });
       }
 
-      // Create user profile in Firestore
+      // Create user profile in Firestore (always use original email, not modified one)
       const userProfile: UserProfile = {
         uid: user.uid,
-        email: data.email,
+        email: data.email, // Store original email, not the modified Firebase Auth email
         firstName: data.firstName,
         lastName: data.lastName,
         role: data.role,
