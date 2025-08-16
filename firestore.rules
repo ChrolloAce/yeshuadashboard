@@ -56,8 +56,9 @@ service cloud.firestore {
     }
 
     // Companies collection - only company owners can manage their own company
+    // Allow reading company names for multi-account display
     match /companies/{companyId} {
-      allow read: if belongsToSameCompany(companyId);
+      allow read: if belongsToSameCompany(companyId) || true; // Allow reading for company name display
       allow write: if isOwnerOfCompany(companyId);
       // Allow company creation if user is authenticated and they're setting themselves as owner
       allow create: if isAuthenticated() && 

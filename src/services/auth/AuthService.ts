@@ -22,6 +22,7 @@ import { AnalyticsScheduler } from '../analytics/AnalyticsScheduler';
 export interface UserProfile {
   uid: string;
   email: string;
+  firebaseEmail?: string; // The actual Firebase Auth email (may be different for additional accounts)
   firstName: string;
   lastName: string;
   role: 'company_owner' | 'company_admin' | 'cleaner';
@@ -257,15 +258,29 @@ export class AuthService {
     }
 
     try {
-      // Verify password with Firebase Auth (we can't directly login to specific account, 
-      // so we'll verify the password and then load the selected profile)
+      // Get the selected account to find its Firebase Auth email
+      const { MultiAccountService } = await import('./MultiAccountService');
+      const multiAccountService = MultiAccountService.getInstance();
+      
+      const accounts = await multiAccountService.getAccountsByEmail(this.pendingAccountSelection.email);
+      const selectedAccount = accounts.find(acc => acc.uid === selectedAccountUid);
+      
+      if (!selectedAccount) {
+        throw new Error('Selected account not found');
+      }
+
+      // Use the correct Firebase Auth email for login
+      const firebaseEmail = selectedAccount.firebaseEmail || selectedAccount.email;
+      
+      console.log(`🔐 Logging in with Firebase email: ${firebaseEmail} for account: ${selectedAccount.email}`);
+      
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        this.pendingAccountSelection.email,
+        firebaseEmail,
         this.pendingAccountSelection.password
       );
 
-      // Load the selected user profile instead of the default one
+      // Load the selected user profile
       await this.loadUserProfile(selectedAccountUid);
       
       if (!this.userProfile) {
@@ -273,9 +288,6 @@ export class AuthService {
       }
 
       // Update last login and save preference
-      const { MultiAccountService } = await import('./MultiAccountService');
-      const multiAccountService = MultiAccountService.getInstance();
-      
       await multiAccountService.updateAccountLastLogin(selectedAccountUid);
       await multiAccountService.setLastSelectedAccount(this.pendingAccountSelection.email, selectedAccountUid);
 
@@ -443,7 +455,10 @@ export class AuthService {
       if (existingAccounts.length > 0) {
         // Email exists in our system but we'll create a new Firebase Auth account
         // by using a modified email for Firebase Auth (but store original email in profile)
-        const modifiedEmail = `${data.email.split('@')[0]}+account${existingAccounts.length + 1}@${data.email.split('@')[1]}`;
+        const timestamp = Date.now();
+        const modifiedEmail = `${data.email.split('@')[0]}+${timestamp}@${data.email.split('@')[1]}`;
+        
+        console.log(`🔄 Creating additional account for ${data.email} using ${modifiedEmail}`);
         
         userCredential = await createUserWithEmailAndPassword(
           auth,
@@ -452,11 +467,13 @@ export class AuthService {
         );
       } else {
         // First account with this email
+        console.log(`✨ Creating first account for ${data.email}`);
+        
         userCredential = await createUserWithEmailAndPassword(
-          auth,
-          data.email,
-          data.password
-        );
+        auth,
+        data.email,
+        data.password
+      );
       }
 
       const user = userCredential.user;
@@ -500,13 +517,13 @@ export class AuthService {
             companyId = invite.companyId;
           } else {
             // Fallback to company invite code for backward compatibility
-            const { CompanyService } = await import('../company/CompanyService');
-            const companyService = CompanyService.getInstance();
-            
-            const company = await companyService.getCompanyByInviteCode(data.inviteCode);
-            if (company) {
-              companyId = company.id;
-            } else {
+          const { CompanyService } = await import('../company/CompanyService');
+          const companyService = CompanyService.getInstance();
+          
+          const company = await companyService.getCompanyByInviteCode(data.inviteCode);
+          if (company) {
+            companyId = company.id;
+          } else {
               throw new Error('Invalid or expired invite code');
             }
           }
@@ -526,6 +543,7 @@ export class AuthService {
       const userProfile: UserProfile = {
         uid: user.uid,
         email: data.email, // Store original email, not the modified Firebase Auth email
+        firebaseEmail: user.email, // Store the actual Firebase Auth email for login purposes
         firstName: data.firstName,
         lastName: data.lastName,
         role: data.role,

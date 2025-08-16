@@ -16,6 +16,7 @@ import { UserProfile } from './AuthService';
 export interface AccountOption {
   uid: string;
   email: string;
+  firebaseEmail?: string; // The actual Firebase Auth email (may be different for additional accounts)
   firstName: string;
   lastName: string;
   role: 'company_owner' | 'company_admin' | 'cleaner';
@@ -77,6 +78,7 @@ export class MultiAccountService {
         const account: AccountOption = {
           uid: docSnap.id,
           email: userData.email,
+          firebaseEmail: userData.firebaseEmail || userData.email, // Use firebaseEmail if available, fallback to email
           firstName: userData.firstName,
           lastName: userData.lastName,
           role: userData.role,
