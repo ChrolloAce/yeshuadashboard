@@ -200,10 +200,18 @@ export default function JoinTeamPage() {
       }
 
       // Login the user
-      const userProfile = await authService.login({
+      const loginResult = await authService.login({
         email: registrationData.email,
         password: registrationData.password
       });
+
+      // Handle multi-account scenario
+      if (loginResult === 'MULTIPLE_ACCOUNTS') {
+        setError('You have multiple accounts. Please use the main login page to select your account.');
+        return;
+      }
+
+      const userProfile = loginResult;
 
       // Check if user is already part of this company
       if (userProfile.companyId === invite.companyId) {
