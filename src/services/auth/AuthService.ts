@@ -458,6 +458,11 @@ export class AuthService {
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       
+      // Handle multiple accounts case - re-throw as is
+      if (error.message === 'MULTIPLE_ACCOUNTS') {
+        throw error;
+      }
+      
       // Handle specific errors
       if (error.message === 'Google sign-in timeout') {
         throw new Error('Google sign-in is taking too long. Please try again.');
