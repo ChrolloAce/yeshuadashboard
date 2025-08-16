@@ -279,16 +279,37 @@ export class AuthService {
         throw new Error('Selected account not found');
       }
 
-      // Use the correct Firebase Auth email for login
-      const firebaseEmail = selectedAccount.firebaseEmail || selectedAccount.email;
+      // Handle different authentication methods
+      let userCredential;
       
-      console.log(`🔐 Logging in with Firebase email: ${firebaseEmail} for account: ${selectedAccount.email}`);
-      
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        firebaseEmail,
-        this.pendingAccountSelection.password
-      );
+      if (selectedAccount.authMethod === 'google') {
+        console.log(`🔐 Google account selected, signing in with Google for: ${selectedAccount.email}`);
+        
+        // For Google accounts, we need to use Google sign-in
+        // But first, clear the pending selection to avoid conflicts
+        const tempPendingSelection = this.pendingAccountSelection;
+        this.pendingAccountSelection = null;
+        
+        try {
+          // Sign in with Google and then switch to the selected account
+          const result = await signInWithPopup(auth, this.googleProvider);
+          userCredential = result;
+        } catch (error) {
+          // Restore pending selection if Google sign-in fails
+          this.pendingAccountSelection = tempPendingSelection;
+          throw error;
+        }
+      } else {
+        // Use email/password for email accounts
+        const firebaseEmail = selectedAccount.firebaseEmail || selectedAccount.email;
+        console.log(`🔐 Email account selected, logging in with Firebase email: ${firebaseEmail} for account: ${selectedAccount.email}`);
+        
+        userCredential = await signInWithEmailAndPassword(
+          auth,
+          firebaseEmail,
+          this.pendingAccountSelection.password
+        );
+      }
 
       // Load the selected user profile
       await this.loadUserProfile(selectedAccountUid);
@@ -299,7 +320,9 @@ export class AuthService {
 
       // Update last login and save preference
       await multiAccountService.updateAccountLastLogin(selectedAccountUid);
-      await multiAccountService.setLastSelectedAccount(this.pendingAccountSelection.email, selectedAccountUid);
+      if (this.pendingAccountSelection) {
+        await multiAccountService.setLastSelectedAccount(this.pendingAccountSelection.email, selectedAccountUid);
+      }
 
       // Clear pending selection
       this.pendingAccountSelection = null;

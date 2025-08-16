@@ -24,6 +24,7 @@ export interface AccountOption {
   companyName?: string;
   isActive: boolean;
   lastLoginAt?: Date;
+  authMethod?: 'email' | 'google'; // Track how this account was created
 }
 
 export interface MultiAccountData {
@@ -75,6 +76,16 @@ export class MultiAccountService {
           }
         }
 
+        // Detect auth method based on firebaseEmail pattern
+        let authMethod: 'email' | 'google' = 'email';
+        if (userData.firebaseEmail && userData.firebaseEmail !== userData.email) {
+          // If firebaseEmail is different from email, it's likely a timestamp-aliased email (additional account)
+          authMethod = 'email';
+        } else if (userData.firebaseEmail === userData.email && userData.role === 'company_owner') {
+          // If firebaseEmail matches email and role is company_owner, likely Google sign-in
+          authMethod = 'google';
+        }
+
         const account: AccountOption = {
           uid: docSnap.id,
           email: userData.email,
@@ -85,7 +96,8 @@ export class MultiAccountService {
           companyId: userData.companyId,
           companyName,
           isActive: userData.isActive,
-          lastLoginAt: userData.lastLoginAt?.toDate()
+          lastLoginAt: userData.lastLoginAt?.toDate(),
+          authMethod
         };
 
         accounts.push(account);

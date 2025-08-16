@@ -113,9 +113,16 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {account.firstName} {account.lastName}
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {account.firstName} {account.lastName}
+                        </h3>
+                        {account.authMethod === 'google' && (
+                          <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                            Google
+                          </span>
+                        )}
+                      </div>
                       <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(account.role)}`}>
                         {getRoleText(account.role)}
                       </div>
