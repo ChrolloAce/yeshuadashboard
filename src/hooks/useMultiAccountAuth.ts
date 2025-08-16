@@ -76,26 +76,33 @@ export const useMultiAccountAuth = (): UseMultiAccountAuthResult => {
 
       const result = await authService.loginWithGoogle();
       
-      // Check if there are multiple accounts for this email
-      if (result && result.email) {
-        const userAccounts = await multiAccountService.getAccountsByEmail(result.email);
-        
-        if (userAccounts.length > 1) {
-          const sortedAccounts = multiAccountService.sortAccountsByPriority(userAccounts);
-          setAccounts(sortedAccounts);
-          setShowAccountSelector(true);
-        } else {
-          // Single account, proceed normally
-          setUserProfile(result);
-          setShowAccountSelector(false);
-        }
-      } else {
-        setUserProfile(result);
-        setShowAccountSelector(false);
-      }
+      // If we reach here, it means single account - proceed normally
+      setUserProfile(result);
+      setShowAccountSelector(false);
     } catch (err: any) {
       console.error('Multi-account Google login error:', err);
-      setError(err.message || 'Google login failed');
+      
+      if (err.message === 'MULTIPLE_ACCOUNTS') {
+        // Handle multiple accounts case
+        console.log('🔄 Google login detected multiple accounts, showing selector...');
+        
+        const googleEmail = authService.getPendingGoogleEmail();
+        if (googleEmail) {
+          try {
+            const userAccounts = await multiAccountService.getAccountsByEmail(googleEmail);
+            const sortedAccounts = multiAccountService.sortAccountsByPriority(userAccounts);
+            setAccounts(sortedAccounts);
+            setShowAccountSelector(true);
+            setError(null); // Clear any previous errors
+          } catch (accountError) {
+            setError('Failed to load account options. Please try again.');
+          }
+        } else {
+          setError('Multiple accounts detected. Please use email login to select your account.');
+        }
+      } else {
+        setError(err.message || 'Google login failed');
+      }
     } finally {
       setLoading(false);
     }

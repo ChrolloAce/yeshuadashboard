@@ -97,67 +97,47 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
         )}
 
         {/* Account List */}
-        <div className="space-y-4 mb-8">
+        <div className="max-w-lg mx-auto space-y-3 mb-8">
           {accounts.map((account, index) => (
             <div key={account.uid}>
               <ThemedCard
-                className={`p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${
+                className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   selectedAccount?.uid === account.uid
-                    ? 'ring-2 ring-primary-500 border-primary-300 shadow-lg'
+                    ? 'ring-2 ring-primary-500 border-primary-300 bg-primary-50'
                     : 'hover:border-gray-300'
                 }`}
                 onClick={() => setSelectedAccount(account)}
               >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1">
+                <div className="flex items-center space-x-4">
                   {getRoleIcon(account.role)}
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-medium text-gray-900 truncate">
                         {account.firstName} {account.lastName}
                       </h3>
-                      {!account.isActive && (
-                        <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">
-                          Inactive
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1">
                       <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(account.role)}`}>
                         {getRoleText(account.role)}
                       </div>
-                      
-                      {account.companyName && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Building className="w-4 h-4 mr-1" />
-                          <span className="truncate">{account.companyName}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center text-xs text-gray-500">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Last login: {formatLastLogin(account.lastLoginAt)}
-                      </div>
                     </div>
+                    
+                    {account.companyName && (
+                      <p className="text-sm text-gray-600 truncate">
+                        {account.companyName}
+                      </p>
+                    )}
                   </div>
-                </div>
 
-                <ChevronRight className={`w-6 h-6 transition-transform duration-200 ${
-                  selectedAccount?.uid === account.uid ? 'text-primary-600 transform rotate-90' : 'text-gray-400'
-                }`} />
-              </div>
+                  <ChevronRight className={`w-5 h-5 transition-colors duration-200 ${
+                    selectedAccount?.uid === account.uid ? 'text-primary-600' : 'text-gray-400'
+                  }`} />
+                </div>
             </ThemedCard>
             
-            {/* Separator line between accounts (except for the last one) */}
+            {/* Simple separator between accounts (except for the last one) */}
             {index < accounts.length - 1 && (
-              <div className="flex items-center my-4">
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-                <div className="px-4">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                </div>
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              <div className="flex justify-center my-3">
+                <div className="w-12 h-px bg-gray-200"></div>
               </div>
             )}
           </div>

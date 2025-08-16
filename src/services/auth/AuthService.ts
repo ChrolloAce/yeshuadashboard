@@ -63,6 +63,7 @@ export class AuthService {
   private isInitialized: boolean = false;
   private analyticsScheduler: AnalyticsScheduler;
   private pendingAccountSelection: { email: string; password: string } | null = null;
+  private pendingGoogleEmail: string | null = null;
 
   private constructor() {
     this.analyticsScheduler = AnalyticsScheduler.getInstance();
@@ -315,6 +316,14 @@ export class AuthService {
    */
   public cancelAccountSelection(): void {
     this.pendingAccountSelection = null;
+    this.pendingGoogleEmail = null;
+  }
+
+  /**
+   * Get pending Google email for multi-account selection
+   */
+  public getPendingGoogleEmail(): string | null {
+    return this.pendingGoogleEmail;
   }
 
   public async loginWithGoogle(): Promise<UserProfile> {
@@ -331,6 +340,22 @@ export class AuthService {
       
       const user = result.user;
       console.log('Google sign-in successful:', user.uid);
+
+      // Check for multiple accounts with this email BEFORE proceeding
+      if (user.email) {
+        const { MultiAccountService } = await import('./MultiAccountService');
+        const multiAccountService = MultiAccountService.getInstance();
+        const accounts = await multiAccountService.getAccountsByEmail(user.email);
+        
+        if (accounts.length > 1) {
+          console.log(`🔍 Found ${accounts.length} accounts for Google email: ${user.email}`);
+          // Sign out the user since we need them to select an account first
+          await auth.signOut();
+          // Store the email for the multi-account flow
+          this.pendingGoogleEmail = user.email;
+          throw new Error('MULTIPLE_ACCOUNTS');
+        }
+      }
 
       // Optimistically set user profile from Google data
       const names = (user.displayName || '').split(' ');
