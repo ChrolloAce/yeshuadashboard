@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { MultiAccountLoginForm } from './MultiAccountLoginForm';
+import { LoginFormWithAuth } from './LoginForm';
 import { UserProfile } from '@/services/auth/AuthService';
 
 interface ProtectedRouteProps {
@@ -30,7 +30,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Show login form if not authenticated
   if (!isAuthenticated || !user) {
-    return fallback || <MultiAccountLoginForm onSuccess={() => window.location.reload()} />;
+    return fallback || <LoginFormWithAuth />;
   }
 
   // Check role-based access

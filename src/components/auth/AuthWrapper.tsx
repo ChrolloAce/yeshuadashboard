@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { MultiAccountLoginForm } from './MultiAccountLoginForm';
+import { LoginFormWithAuth } from './LoginForm';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -39,7 +39,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   // Show login form if not authenticated
   if (!isAuthenticated || !user) {
-    return <MultiAccountLoginForm onSuccess={() => window.location.reload()} />;
+    return <LoginFormWithAuth />;
   }
 
   // Show authenticated content

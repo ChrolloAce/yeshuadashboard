@@ -1,6 +1,8 @@
 import React from 'react';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useMultiAccountAuth } from '@/hooks/useMultiAccountAuth';
+import { AccountSelector } from './AccountSelector';
 import RegisterForm from './RegisterForm';
 
 interface LoginFormState {
@@ -230,10 +232,28 @@ export class LoginForm extends React.Component<{}, LoginFormState> {
   }
 }
 
-// Functional wrapper component to use the hook
+// Enhanced functional wrapper component with multi-account support
 export const LoginFormWithAuth: React.FC = () => {
-  const { login, loginWithGoogle, loading, error } = useAuth();
+  const { loginWithGoogle, loading: authLoading, error: authError } = useAuth();
+  const {
+    login,
+    selectAccount,
+    cancelSelection,
+    accounts,
+    showAccountSelector,
+    loading: multiLoading,
+    error: multiError,
+    userProfile
+  } = useMultiAccountAuth();
+  
   const [showRegister, setShowRegister] = React.useState(false);
+
+  // If login successful, reload the page
+  React.useEffect(() => {
+    if (userProfile) {
+      window.location.reload();
+    }
+  }, [userProfile]);
 
   if (showRegister) {
     return (
@@ -241,13 +261,29 @@ export const LoginFormWithAuth: React.FC = () => {
     );
   }
 
+  // Show account selector if multiple accounts found
+  if (showAccountSelector && accounts.length > 0) {
+    return (
+      <AccountSelector
+        accounts={accounts}
+        onSelectAccount={selectAccount}
+        loading={multiLoading}
+        error={multiError}
+      />
+    );
+  }
+
+  const handleLogin = async (credentials: { email: string; password: string }) => {
+    await login(credentials.email, credentials.password);
+  };
+
   return (
     <LoginFormWrapper 
-      onLogin={login} 
+      onLogin={handleLogin} 
       onLoginWithGoogle={loginWithGoogle}
       onSwitchToRegister={() => setShowRegister(true)}
-      loading={loading} 
-      error={error} 
+      loading={authLoading || multiLoading} 
+      error={authError || multiError} 
     />
   );
 };
