@@ -283,20 +283,31 @@ export class AuthService {
       let userCredential;
       
       if (selectedAccount.authMethod === 'google') {
-        console.log(`🔐 Google account selected, signing in with Google for: ${selectedAccount.email}`);
+        console.log(`🔐 Google account selected: ${selectedAccount.email}`);
         
-        // For Google accounts, we need to use Google sign-in
-        // But first, clear the pending selection to avoid conflicts
-        const tempPendingSelection = this.pendingAccountSelection;
-        this.pendingAccountSelection = null;
+        // Create a Google provider with login hint for the specific account
+        const googleProvider = new GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        googleProvider.setCustomParameters({
+          prompt: 'select_account',
+          login_hint: selectedAccount.email
+        });
         
         try {
-          // Sign in with Google and then switch to the selected account
-          const result = await signInWithPopup(auth, this.googleProvider);
+          console.log(`✨ Signing in with Google account hint: ${selectedAccount.email}`);
+          const result = await signInWithPopup(auth, googleProvider);
           userCredential = result;
+          
+          // Verify this is the correct Google account
+          if (result.user.email !== selectedAccount.email) {
+            console.warn(`⚠️ Google sign-in returned different email: ${result.user.email} vs expected: ${selectedAccount.email}`);
+            // If it's a different account, sign out and throw error
+            await signOut(auth);
+            throw new Error(`Please select the correct Google account: ${selectedAccount.email}`);
+          }
         } catch (error) {
-          // Restore pending selection if Google sign-in fails
-          this.pendingAccountSelection = tempPendingSelection;
+          console.error('Google sign-in failed:', error);
           throw error;
         }
       } else {
