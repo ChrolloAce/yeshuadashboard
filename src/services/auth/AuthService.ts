@@ -552,7 +552,7 @@ export class AuthService {
       const userProfile: UserProfile = {
         uid: user.uid,
         email: data.email, // Store original email, not the modified Firebase Auth email
-        firebaseEmail: user.email, // Store the actual Firebase Auth email for login purposes
+        firebaseEmail: user.email || undefined, // Store the actual Firebase Auth email for login purposes
         firstName: data.firstName,
         lastName: data.lastName,
         role: data.role,
