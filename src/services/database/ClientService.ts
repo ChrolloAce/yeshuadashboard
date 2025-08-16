@@ -31,6 +31,57 @@ export class ClientService {
     return ClientService.instance;
   }
 
+  // Create a new client directly with client data
+  public async createClientDirect(companyId: string, clientData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+    };
+  }): Promise<Client> {
+    try {
+      // Check if client already exists by email within this company
+      const existingClient = await this.getClientByEmailAndCompany(clientData.email, companyId);
+      if (existingClient) {
+        throw new Error('Client with this email already exists');
+      }
+
+      const now = new Date();
+      const client: Omit<Client, 'id'> = {
+        companyId,
+        email: clientData.email,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        phone: clientData.phone,
+        address: clientData.address,
+        createdAt: now,
+        updatedAt: now,
+        totalJobs: 0,
+        totalSpent: 0,
+        notes: ''
+      };
+
+      const docRef = await addDoc(collection(db, COLLECTIONS.CLIENTS), {
+        ...client,
+        createdAt: Timestamp.fromDate(client.createdAt),
+        updatedAt: Timestamp.fromDate(client.updatedAt)
+      });
+
+      return {
+        id: docRef.id,
+        ...client
+      };
+    } catch (error) {
+      console.error('Error creating client directly:', error);
+      throw error;
+    }
+  }
+
   // Create a new client from booking data
   public async createClient(bookingData: BookingData, companyId: string): Promise<Client> {
     try {

@@ -92,12 +92,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
             className="w-12 h-12 object-contain"
           />
           <div>
-            <h3 className={`font-semibold text-lg flex items-center ${
-              job.status === 'completed' ? 'text-green-600' : 'text-gray-900'
-            }`}>
-              {job.status === 'completed' && (
-                <Check className="w-5 h-5 mr-2 text-green-600" />
-              )}
+            <h3 className="font-semibold text-gray-900 text-lg">
               {job.service.type.charAt(0).toUpperCase() + job.service.type.slice(1)} Cleaning
             </h3>
             <p className="text-sm text-gray-500 flex items-center">
@@ -109,7 +104,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
 
         <div className="flex items-center space-x-2">
           <ThemedBadge variant={getStatusColor(job.status)}>
-            {job.status.replace('-', ' ').toUpperCase()}
+            <div className="flex items-center">
+              {job.status === 'completed' && (
+                <Check className="w-4 h-4 mr-1" />
+              )}
+              {job.status.replace('-', ' ').toUpperCase()}
+            </div>
           </ThemedBadge>
           
           <div className="relative">

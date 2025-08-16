@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Plus, Search, Mail, Phone, MapPin, Calendar, RefreshCw } from 'lucide-react';
+import { User, Plus, Search, Mail, Phone, MapPin, Calendar, RefreshCw, X } from 'lucide-react';
 import { useFirebaseClients } from '@/hooks/useFirebaseClients';
 import { Client } from '@/types/database';
 import { ThemedCard, ThemedButton, ThemedInput, LoadingSpinner } from '@/components/ui';
+import { ClientService } from '@/services/database/ClientService';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ClientCardProps {
   client: Client;
@@ -79,19 +81,80 @@ const ClientRow: React.FC<ClientCardProps> = ({ client, onViewDetails }) => {
 export const ClientsTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [newClientData, setNewClientData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: ''
+  });
   
   const { clients, loading, error, refresh } = useFirebaseClients({ 
     realTime: true,
     searchTerm: searchQuery 
   });
+  const { userProfile } = useAuth();
+  const clientService = ClientService.getInstance();
 
   const handleViewDetails = (client: Client) => {
     setSelectedClient(client);
   };
 
   const handleAddClient = () => {
-    // TODO: Implement add client functionality
-    alert('Add client functionality coming soon!');
+    setShowAddClientModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddClientModal(false);
+    setNewClientData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      street: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    });
+  };
+
+  const handleCreateClient = async () => {
+    try {
+      if (!userProfile?.companyId) {
+        alert('No company ID available');
+        return;
+      }
+
+      if (!newClientData.firstName || !newClientData.lastName || !newClientData.email) {
+        alert('Please fill in required fields: First Name, Last Name, and Email');
+        return;
+      }
+
+      const clientData = {
+        firstName: newClientData.firstName,
+        lastName: newClientData.lastName,
+        email: newClientData.email,
+        phone: newClientData.phone || undefined,
+        address: {
+          street: newClientData.street,
+          city: newClientData.city,
+          state: newClientData.state,
+          zipCode: newClientData.zipCode
+        }
+      };
+
+      await clientService.createClientDirect(userProfile.companyId, clientData);
+      handleCloseModal();
+      refresh(); // Refresh the client list
+      console.log('✅ Client created successfully');
+    } catch (error) {
+      console.error('❌ Error creating client:', error);
+      alert('Failed to create client. Please try again.');
+    }
   };
 
   if (loading) {
@@ -220,6 +283,137 @@ export const ClientsTab: React.FC = () => {
             >
               Close
             </ThemedButton>
+          </div>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {showAddClientModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Add New Client</h2>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name *
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={newClientData.firstName}
+                      onChange={(e) => setNewClientData(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name *
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={newClientData.lastName}
+                      onChange={(e) => setNewClientData(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="Doe"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <ThemedInput
+                    type="email"
+                    value={newClientData.email}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="john.doe@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone
+                  </label>
+                  <ThemedInput
+                    type="tel"
+                    value={newClientData.phone}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Address
+                  </label>
+                  <ThemedInput
+                    type="text"
+                    value={newClientData.street}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, street: e.target.value }))}
+                    placeholder="123 Main St"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={newClientData.city}
+                      onChange={(e) => setNewClientData(prev => ({ ...prev, city: e.target.value }))}
+                      placeholder="Miami"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      State
+                    </label>
+                    <ThemedInput
+                      type="text"
+                      value={newClientData.state}
+                      onChange={(e) => setNewClientData(prev => ({ ...prev, state: e.target.value }))}
+                      placeholder="FL"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ZIP Code
+                  </label>
+                  <ThemedInput
+                    type="text"
+                    value={newClientData.zipCode}
+                    onChange={(e) => setNewClientData(prev => ({ ...prev, zipCode: e.target.value }))}
+                    placeholder="33101"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end space-x-3 mt-6 pt-6 border-t">
+                <ThemedButton variant="secondary" onClick={handleCloseModal}>
+                  Cancel
+                </ThemedButton>
+                <ThemedButton variant="primary" onClick={handleCreateClient}>
+                  Add Client
+                </ThemedButton>
+              </div>
+            </div>
           </div>
         </div>
       )}
