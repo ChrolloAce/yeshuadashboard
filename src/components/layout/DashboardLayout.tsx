@@ -5,6 +5,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   currentTab: string;
   onTabChange: (tab: string) => void;
+  userRole?: string;
 }
 
 interface DashboardLayoutState {
@@ -26,7 +27,7 @@ export class DashboardLayout extends React.Component<DashboardLayoutProps, Dashb
   };
 
   public render(): React.ReactNode {
-    const { children, currentTab, onTabChange } = this.props;
+    const { children, currentTab, onTabChange, userRole } = this.props;
     const { isSidebarCollapsed } = this.state;
 
     return (
@@ -36,6 +37,7 @@ export class DashboardLayout extends React.Component<DashboardLayoutProps, Dashb
           onTabChange={onTabChange}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={this.handleToggleSidebar}
+          userRole={userRole}
         />
         
         <main className="flex-1 overflow-auto">

@@ -21,6 +21,7 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  userRole?: string;
 }
 
 interface NavigationItem {
@@ -33,48 +34,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab, 
   onTabChange, 
   isCollapsed, 
-  onToggleCollapse 
+  onToggleCollapse,
+  userRole 
 }) => {
   const { userProfile, logout } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
 
-  const navigationItems: NavigationItem[] = [
-    {
-      id: 'home',
-      label: 'Dashboard',
-      icon: <Home className="w-5 h-5" />
-    },
-    {
-      id: 'acquisition',
-      label: 'Acquisition',
-      icon: <PlusCircle className="w-5 h-5" />
-    },
-    {
-      id: 'jobs',
-      label: 'Jobs',
-      icon: <Briefcase className="w-5 h-5" />
-    },
-    {
-      id: 'clients',
-      label: 'Clients',
-      icon: <Users className="w-5 h-5" />
-    },
-    {
-      id: 'teams',
-      label: 'Teams',
-      icon: <UserCheck className="w-5 h-5" />
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <BarChart3 className="w-5 h-5" />
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: <Settings className="w-5 h-5" />
+  // Different navigation items based on user role
+  const getNavigationItems = (): NavigationItem[] => {
+    if (userRole === 'cleaner') {
+      return [
+        {
+          id: 'home',
+          label: 'Dashboard',
+          icon: <Home className="w-5 h-5" />
+        },
+        {
+          id: 'schedule',
+          label: 'My Schedule',
+          icon: <Briefcase className="w-5 h-5" />
+        },
+        {
+          id: 'settings',
+          label: 'Settings',
+          icon: <Settings className="w-5 h-5" />
+        }
+      ];
     }
-  ];
+
+    // Company owner/admin navigation
+    return [
+      {
+        id: 'home',
+        label: 'Dashboard',
+        icon: <Home className="w-5 h-5" />
+      },
+      {
+        id: 'acquisition',
+        label: 'Acquisition',
+        icon: <PlusCircle className="w-5 h-5" />
+      },
+      {
+        id: 'jobs',
+        label: 'Jobs',
+        icon: <Briefcase className="w-5 h-5" />
+      },
+      {
+        id: 'clients',
+        label: 'Clients',
+        icon: <Users className="w-5 h-5" />
+      },
+      {
+        id: 'teams',
+        label: 'Teams',
+        icon: <UserCheck className="w-5 h-5" />
+      },
+      {
+        id: 'analytics',
+        label: 'Analytics',
+        icon: <BarChart3 className="w-5 h-5" />
+      },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: <Settings className="w-5 h-5" />
+      }
+    ];
+  };
+
+  const navigationItems = getNavigationItems();
 
   const handleTabClick = (tabId: string): void => {
     onTabChange(tabId);

@@ -9,55 +9,54 @@ import { ClientsTab } from '@/components/dashboard/ClientsTab';
 import { TeamsTab } from '@/components/dashboard/TeamsTab';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
+import { CleanerDashboard } from '@/components/dashboard/CleanerDashboard';
 import { AuthWrapper } from '@/components/auth/AuthWrapper';
+import { useAuth } from '@/hooks/useAuth';
 
-interface DashboardPageState {
-  currentTab: string;
-}
+export default function DashboardPage() {
+  const { userProfile } = useAuth();
+  const [currentTab, setCurrentTab] = React.useState('home');
 
-export default class DashboardPage extends React.Component<{}, DashboardPageState> {
-  constructor(props: {}) {
-    super(props);
-    this.state = {
-      currentTab: 'home'
-    };
-  }
-
-  private handleTabChange = (tab: string): void => {
-    this.setState({ currentTab: tab });
+  const handleTabChange = (tab: string): void => {
+    setCurrentTab(tab);
   };
 
-  private renderCurrentTab = (): React.ReactNode => {
-    switch (this.state.currentTab) {
+  const renderCurrentTab = (): React.ReactNode => {
+    // If user is a cleaner, show cleaner dashboard
+    if (userProfile?.role === 'cleaner') {
+      return <CleanerDashboard />;
+    }
+
+    // Company dashboard (owner/admin)
+    switch (currentTab) {
       case 'home':
         return <DashboardHome />;
       case 'acquisition':
         return <AcquisitionTab />;
       case 'jobs':
         return <JobsTab />;
-              case 'clients':
-          return <ClientsTab />;
-        case 'teams':
-          return <TeamsTab />;
-        case 'analytics':
-          return <AnalyticsTab />;
-        case 'settings':
-          return <SettingsTab />;
+      case 'clients':
+        return <ClientsTab />;
+      case 'teams':
+        return <TeamsTab />;
+      case 'analytics':
+        return <AnalyticsTab />;
+      case 'settings':
+        return <SettingsTab />;
       default:
         return <DashboardHome />;
     }
   };
 
-  public render(): React.ReactNode {
-    return (
-      <AuthWrapper>
-        <DashboardLayout 
-          currentTab={this.state.currentTab}
-          onTabChange={this.handleTabChange}
-        >
-          {this.renderCurrentTab()}
-        </DashboardLayout>
-      </AuthWrapper>
-    );
-  }
+  return (
+    <AuthWrapper>
+      <DashboardLayout 
+        currentTab={currentTab} 
+        onTabChange={handleTabChange}
+        userRole={userProfile?.role}
+      >
+        {renderCurrentTab()}
+      </DashboardLayout>
+    </AuthWrapper>
+  );
 }

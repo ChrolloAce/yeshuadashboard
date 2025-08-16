@@ -243,8 +243,8 @@ export const COLLECTIONS = {
   CLEANER_PROFILES: 'cleaner_profiles',
   CLIENTS: 'clients', 
   QUOTES: 'quotes',
-  JOBS: 'jobs',
   TEAMS: 'teams',
+  JOBS: 'jobs',
   ANALYTICS_SNAPSHOTS: 'analytics_snapshots',
   FINANCIAL_RECORDS: 'financial_records',
   COMPANY_METRICS: 'company_metrics'
