@@ -97,7 +97,7 @@ export const AcquisitionTab: React.FC = () => {
       console.log('Creating immediate booking...', bookingData);
       
       // Create job immediately (Book Now) - cast as complete BookingData since we validated it
-      const job = await bookingService.bookNow(bookingData as any);
+      const job = await bookingService.bookNow(bookingData as any, booking.pricing);
       
       console.log('✅ Job created successfully:', job);
       alert(`Booking confirmed! Job #${job.id} has been created. The customer will receive a confirmation email shortly.`);
@@ -133,7 +133,7 @@ export const AcquisitionTab: React.FC = () => {
       console.log('Sending invoice...', bookingData);
       
       // Send invoice (create quote and mark as sent) - cast as complete BookingData since we validated it
-      const quote = await bookingService.sendInvoice(bookingData as any);
+      const quote = await bookingService.sendInvoice(bookingData as any, booking.pricing);
       
       console.log('✅ Quote created successfully:', quote);
       alert(`Invoice sent successfully! Quote #${quote.id} has been created and sent to ${bookingData.contact?.email}.`);

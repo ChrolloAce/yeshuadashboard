@@ -24,6 +24,38 @@ export class BookingToFirebaseService {
   }
 
   /**
+   * Book now - create job immediately
+   */
+  public async bookNow(bookingData: BookingData, actualPricing?: any): Promise<Job> {
+    const result = await this.processBooking(bookingData, { 
+      createJobImmediately: true,
+      skipQuote: true 
+    }, actualPricing);
+    
+    if (!result.job) {
+      throw new Error('Failed to create job');
+    }
+    
+    return result.job;
+  }
+
+  /**
+   * Send invoice - create quote first
+   */
+  public async sendInvoice(bookingData: BookingData, actualPricing?: any): Promise<Quote> {
+    const result = await this.processBooking(bookingData, { 
+      createJobImmediately: false,
+      skipQuote: false 
+    }, actualPricing);
+    
+    if (!result.quote) {
+      throw new Error('Failed to create quote');
+    }
+    
+    return result.quote;
+  }
+
+  /**
    * Complete booking flow: Create client, quote, and optionally convert to job
    */
   public async processBooking(
@@ -31,7 +63,8 @@ export class BookingToFirebaseService {
     options: {
       createJobImmediately?: boolean;
       skipQuote?: boolean;
-    } = {}
+    } = {},
+    actualPricing?: any
   ): Promise<{
     client: Client;
     quote?: Quote;
@@ -72,7 +105,7 @@ export class BookingToFirebaseService {
           job = await this.jobService.createJobFromQuote(quote);
         } else {
           // Create job directly from booking data
-          job = await this.createJobDirectlyFromBooking(bookingData, client, userProfile.companyId);
+          job = await this.createJobDirectlyFromBooking(bookingData, client, userProfile.companyId, actualPricing);
         }
         console.log('Job created:', job?.id);
       }
@@ -98,12 +131,13 @@ export class BookingToFirebaseService {
   private async createJobDirectlyFromBooking(
     bookingData: BookingData,
     client: Client,
-    companyId: string
+    companyId: string,
+    actualPricing?: any
   ): Promise<Job> {
     const now = new Date();
     
-    // Calculate pricing from booking data
-    const pricingBreakdown = this.calculatePricing(bookingData);
+    // Use the actual pricing from BookingManager if provided, otherwise calculate
+    const pricingBreakdown = actualPricing || this.calculatePricing(bookingData);
 
     const jobData: Omit<Job, 'id' | 'createdAt' | 'updatedAt'> = {
       companyId,
@@ -171,48 +205,6 @@ export class BookingToFirebaseService {
       return job;
     } catch (error) {
       console.error('Error converting quote to job:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Send invoice for a booking (marks quote as sent)
-   */
-  public async sendInvoice(bookingData: BookingData): Promise<Quote> {
-    try {
-      const result = await this.processBooking(bookingData, { skipQuote: false });
-      
-      if (result.quote) {
-        await this.quoteService.updateQuoteStatus(result.quote.id, 'sent');
-        console.log('Invoice sent for quote:', result.quote.id);
-        return result.quote;
-      }
-      
-      throw new Error('No quote created to send invoice for');
-    } catch (error) {
-      console.error('Error sending invoice:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Book now (create job immediately)
-   */
-  public async bookNow(bookingData: BookingData): Promise<Job> {
-    try {
-      const result = await this.processBooking(bookingData, { 
-        createJobImmediately: true,
-        skipQuote: false 
-      });
-      
-      if (result.job) {
-        console.log('Immediate booking created:', result.job.id);
-        return result.job;
-      }
-      
-      throw new Error('Failed to create immediate booking');
-    } catch (error) {
-      console.error('Error creating immediate booking:', error);
       throw error;
     }
   }
