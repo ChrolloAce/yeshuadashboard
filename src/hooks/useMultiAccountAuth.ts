@@ -4,6 +4,7 @@ import { MultiAccountService, AccountOption } from '@/services/auth/MultiAccount
 
 interface UseMultiAccountAuthResult {
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   selectAccount: (account: AccountOption) => Promise<void>;
   cancelSelection: () => void;
   accounts: AccountOption[];
@@ -68,6 +69,38 @@ export const useMultiAccountAuth = (): UseMultiAccountAuthResult => {
     }
   }, [authService]);
 
+  const loginWithGoogle = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await authService.loginWithGoogle();
+      
+      // Check if there are multiple accounts for this email
+      if (result && result.email) {
+        const userAccounts = await multiAccountService.getAccountsByEmail(result.email);
+        
+        if (userAccounts.length > 1) {
+          const sortedAccounts = multiAccountService.sortAccountsByPriority(userAccounts);
+          setAccounts(sortedAccounts);
+          setShowAccountSelector(true);
+        } else {
+          // Single account, proceed normally
+          setUserProfile(result);
+          setShowAccountSelector(false);
+        }
+      } else {
+        setUserProfile(result);
+        setShowAccountSelector(false);
+      }
+    } catch (err: any) {
+      console.error('Multi-account Google login error:', err);
+      setError(err.message || 'Google login failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [authService, multiAccountService]);
+
   const cancelSelection = useCallback(() => {
     authService.cancelAccountSelection();
     setShowAccountSelector(false);
@@ -77,6 +110,7 @@ export const useMultiAccountAuth = (): UseMultiAccountAuthResult => {
 
   return {
     login,
+    loginWithGoogle,
     selectAccount,
     cancelSelection,
     accounts,

@@ -77,15 +77,15 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full">
+      <div className="max-w-2xl w-full">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <User className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Choose Account</h1>
-          <p className="text-gray-600 mt-2">
-            You have multiple accounts. Select which one to use:
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">Choose Your Account</h1>
+          <p className="text-lg text-gray-600 max-w-md mx-auto">
+            You have multiple accounts with this email. Select which one to use:
           </p>
         </div>
 
@@ -97,17 +97,17 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
         )}
 
         {/* Account List */}
-        <div className="space-y-3 mb-6">
-          {accounts.map((account) => (
-            <ThemedCard
-              key={account.uid}
-              className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedAccount?.uid === account.uid
-                  ? 'ring-2 ring-primary-500 border-primary-300'
-                  : 'hover:border-gray-300'
-              }`}
-              onClick={() => setSelectedAccount(account)}
-            >
+        <div className="space-y-4 mb-8">
+          {accounts.map((account, index) => (
+            <div key={account.uid}>
+              <ThemedCard
+                className={`p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${
+                  selectedAccount?.uid === account.uid
+                    ? 'ring-2 ring-primary-500 border-primary-300 shadow-lg'
+                    : 'hover:border-gray-300'
+                }`}
+                onClick={() => setSelectedAccount(account)}
+              >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3 flex-1">
                   {getRoleIcon(account.role)}
@@ -144,33 +144,47 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
                   </div>
                 </div>
 
-                <ChevronRight className={`w-5 h-5 transition-transform duration-200 ${
+                <ChevronRight className={`w-6 h-6 transition-transform duration-200 ${
                   selectedAccount?.uid === account.uid ? 'text-primary-600 transform rotate-90' : 'text-gray-400'
                 }`} />
               </div>
             </ThemedCard>
+            
+            {/* Separator line between accounts (except for the last one) */}
+            {index < accounts.length - 1 && (
+              <div className="flex items-center my-4">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                <div className="px-4">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                </div>
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+              </div>
+            )}
+          </div>
           ))}
         </div>
 
         {/* Continue Button */}
-        <ThemedButton
-          variant="primary"
-          className="w-full"
-          disabled={!selectedAccount || loading}
-          onClick={() => selectedAccount && onSelectAccount(selectedAccount)}
-        >
-          {loading ? (
-            <div className="flex items-center">
-              <LoadingSpinner size="sm" />
-              <span className="ml-2">Signing in...</span>
-            </div>
-          ) : (
-            <>
-              Continue as {selectedAccount ? `${selectedAccount.firstName}` : '...'}
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </>
-          )}
-        </ThemedButton>
+        <div className="text-center">
+          <ThemedButton
+            variant="primary"
+            className="w-full max-w-md mx-auto py-4 text-lg font-semibold"
+            disabled={!selectedAccount || loading}
+            onClick={() => selectedAccount && onSelectAccount(selectedAccount)}
+          >
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <LoadingSpinner size="sm" />
+                <span className="ml-3">Signing in...</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center">
+                Continue as {selectedAccount ? `${selectedAccount.firstName}` : '...'}
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </div>
+            )}
+          </ThemedButton>
+        </div>
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 mt-6">

@@ -234,15 +234,15 @@ export class LoginForm extends React.Component<{}, LoginFormState> {
 
 // Enhanced functional wrapper component with multi-account support
 export const LoginFormWithAuth: React.FC = () => {
-  const { loginWithGoogle, loading: authLoading, error: authError } = useAuth();
   const {
     login,
+    loginWithGoogle,
     selectAccount,
     cancelSelection,
     accounts,
     showAccountSelector,
-    loading: multiLoading,
-    error: multiError,
+    loading,
+    error,
     userProfile
   } = useMultiAccountAuth();
   
@@ -267,8 +267,8 @@ export const LoginFormWithAuth: React.FC = () => {
       <AccountSelector
         accounts={accounts}
         onSelectAccount={selectAccount}
-        loading={multiLoading}
-        error={multiError}
+        loading={loading}
+        error={error}
       />
     );
   }
@@ -282,8 +282,8 @@ export const LoginFormWithAuth: React.FC = () => {
       onLogin={handleLogin} 
       onLoginWithGoogle={loginWithGoogle}
       onSwitchToRegister={() => setShowRegister(true)}
-      loading={authLoading || multiLoading} 
-      error={authError || multiError} 
+      loading={loading} 
+      error={error} 
     />
   );
 };
