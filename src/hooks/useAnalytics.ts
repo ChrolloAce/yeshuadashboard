@@ -45,11 +45,15 @@ export const useAnalytics = (): UseAnalyticsReturn => {
       setError(null);
 
       if (!userProfile?.companyId) {
-        console.warn('No company ID available, cannot load analytics');
+        // Only warn if userProfile exists but has no companyId
+        if (userProfile) {
+          console.warn('No company ID available, cannot load analytics');
+        }
         setMetrics(null);
         setTimeSeriesData([]);
         setMonthlyMetrics([]);
         setRevenueBreakdown(null);
+        setIsLoading(false);
         return;
       }
 
@@ -69,6 +73,20 @@ export const useAnalytics = (): UseAnalyticsReturn => {
         monthlyCount: monthly.length,
         revenueBreakdown: breakdown
       });
+      
+      // Log revenue breakdown details for debugging
+      if (breakdown) {
+        console.log('💰 Revenue Breakdown Details:', {
+          totalRevenue: `$${breakdown.totalRevenue}`,
+          paidRevenue: `$${breakdown.paidRevenue}`,
+          pendingRevenue: `$${breakdown.pendingRevenue}`,
+          totalPaidToCleaners: `$${breakdown.totalPaidToCleaners}`,
+          totalProfit: `$${breakdown.totalProfit}`,
+          averageJobValue: `$${breakdown.averageJobValue}`,
+          highestJobValue: `$${breakdown.highestJobValue}`,
+          lowestJobValue: `$${breakdown.lowestJobValue}`
+        });
+      }
 
       setMetrics(metrics);
       setTimeSeriesData(timeSeries);
