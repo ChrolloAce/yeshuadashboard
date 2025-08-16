@@ -42,11 +42,15 @@ service cloud.firestore {
 
     // Users collection - users can read/write their own profile
     // Company owners/admins can read their company's users
+    // Allow querying by email for multi-account support
     match /users/{userId} {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         (isCompanyAdmin() && resource.data.companyId == getUserCompanyId())
       );
+      // Allow querying by email for multi-account registration and login
+      // This is necessary for checking existing accounts during registration
+      allow list: if true;
       allow write: if isAuthenticated() && request.auth.uid == userId;
       allow create: if isAuthenticated();
     }
