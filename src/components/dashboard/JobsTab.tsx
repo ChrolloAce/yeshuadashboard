@@ -16,7 +16,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  User
+  User,
+  Check
 } from 'lucide-react';
 import { useFirebaseJobs } from '@/hooks/useFirebaseJobs';
 import { Job, JobStatus } from '@/types/database';
@@ -91,7 +92,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
             className="w-12 h-12 object-contain"
           />
           <div>
-            <h3 className="font-semibold text-gray-900 text-lg">
+            <h3 className={`font-semibold text-lg flex items-center ${
+              job.status === 'completed' ? 'text-green-600' : 'text-gray-900'
+            }`}>
+              {job.status === 'completed' && (
+                <Check className="w-5 h-5 mr-2 text-green-600" />
+              )}
               {job.service.type.charAt(0).toUpperCase() + job.service.type.slice(1)} Cleaning
             </h3>
             <p className="text-sm text-gray-500 flex items-center">

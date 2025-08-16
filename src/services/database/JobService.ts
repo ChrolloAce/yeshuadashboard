@@ -213,6 +213,9 @@ export class JobService {
 
       if (status === 'completed') {
         updates.completedAt = Timestamp.fromDate(new Date());
+        // When job is completed, mark payment as paid
+        updates['payment.status'] = 'paid';
+        updates['payment.paidAt'] = Timestamp.fromDate(new Date());
       }
 
       await updateDoc(docRef, updates);
