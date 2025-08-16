@@ -69,6 +69,15 @@ export class AuthService {
     this.initializeAuth();
   }
 
+  /**
+   * Remove undefined values from object before saving to Firestore
+   */
+  private cleanForFirestore(obj: any): any {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([_, value]) => value !== undefined)
+    );
+  }
+
   private async initializeAuth(): Promise<void> {
     try {
       // Set persistence to local storage for login state preservation
@@ -161,12 +170,12 @@ export class AuthService {
           };
 
           try {
-            await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+            await setDoc(doc(db, COLLECTIONS.USERS, user.uid), this.cleanForFirestore({
               ...basicProfile,
               createdAt: Timestamp.fromDate(basicProfile.createdAt),
               updatedAt: Timestamp.fromDate(basicProfile.updatedAt),
               lastLoginAt: Timestamp.fromDate(basicProfile.lastLoginAt!)
-            });
+            }));
             this.userProfile = basicProfile;
             console.log('Basic user profile created');
           } catch (error) {
@@ -556,12 +565,12 @@ export class AuthService {
         updatedAt: new Date()
       };
 
-      await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+      await setDoc(doc(db, COLLECTIONS.USERS, user.uid), this.cleanForFirestore({
         ...userProfile,
         createdAt: Timestamp.fromDate(userProfile.createdAt),
         updatedAt: Timestamp.fromDate(userProfile.updatedAt),
         lastLoginAt: Timestamp.fromDate(userProfile.lastLoginAt!)
-      });
+      }));
 
       this.userProfile = userProfile;
       return userProfile;

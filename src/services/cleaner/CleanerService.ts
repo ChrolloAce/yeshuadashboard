@@ -34,6 +34,15 @@ export class CleanerService {
   private constructor() {}
 
   /**
+   * Remove undefined values from object before saving to Firestore
+   */
+  private cleanForFirestore(obj: any): any {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([_, value]) => value !== undefined)
+    );
+  }
+
+  /**
    * Create a cleaner profile
    */
   public async createCleanerProfile(userId: string, profileData: {
@@ -66,11 +75,11 @@ export class CleanerService {
         updatedAt: new Date()
       };
 
-      await setDoc(doc(db, COLLECTIONS.CLEANER_PROFILES, userId), {
+      await setDoc(doc(db, COLLECTIONS.CLEANER_PROFILES, userId), this.cleanForFirestore({
         ...profile,
         createdAt: Timestamp.fromDate(profile.createdAt),
         updatedAt: Timestamp.fromDate(profile.updatedAt)
-      });
+      }));
 
       return profile;
     } catch (error) {
