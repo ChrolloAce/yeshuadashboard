@@ -17,20 +17,23 @@ import {
   XCircle,
   AlertCircle,
   User,
-  Check
+  Check,
+  UserPlus
 } from 'lucide-react';
 import { useFirebaseJobs } from '@/hooks/useFirebaseJobs';
 import { Job, JobStatus } from '@/types/database';
 import { ThemedCard, ThemedButton, ThemedBadge } from '@/components/ui';
+import { AssignJobModal } from './AssignJobModal';
 
 interface JobCardProps {
   job: Job;
   onStatusChange: (jobId: string, status: JobStatus) => void;
   onDelete: (jobId: string) => void;
   onViewDetails: (job: Job) => void;
+  onAssign: (job: Job) => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onViewDetails }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onViewDetails, onAssign }) => {
   const [showActions, setShowActions] = useState(false);
 
   const getStatusColor = (status: JobStatus): 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info' => {
@@ -130,6 +133,19 @@ const JobCard: React.FC<JobCardProps> = ({ job, onStatusChange, onDelete, onView
                   View Details
                 </button>
                 
+                {(job.status === 'pending' || job.status === 'confirmed' || job.status === 'assigned') && (
+                  <button
+                    onClick={() => {
+                      onAssign(job);
+                      setShowActions(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center text-blue-600"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {job.assignedTo ? 'Reassign Cleaner' : 'Assign Cleaner'}
+                  </button>
+                )}
+                
                 {job.status !== 'completed' && (
                   <button
                     onClick={() => handleStatusChange('completed')}
@@ -221,12 +237,15 @@ export const JobsTab: React.FC = () => {
     error, 
     refresh, 
     deleteJob, 
-    updateJobStatus 
+    updateJobStatus,
+    assignJob
   } = useFirebaseJobs({ realTime: true });
 
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobToAssign, setJobToAssign] = useState<Job | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   const statusOptions = [
     { value: 'all', label: 'All Jobs', count: jobs.length },
@@ -258,6 +277,26 @@ export const JobsTab: React.FC = () => {
 
   const handleStatusChange = async (jobId: string, status: JobStatus) => {
     await updateJobStatus(jobId, status);
+  };
+
+  const handleAssignJob = (job: Job) => {
+    setJobToAssign(job);
+    setShowAssignModal(true);
+  };
+
+  const handleJobAssignment = async (jobId: string, assignment: {
+    cleanerId: string;
+    cleanerName: string;
+    teamId?: string;
+  }) => {
+    await assignJob(jobId, assignment);
+    setShowAssignModal(false);
+    setJobToAssign(null);
+  };
+
+  const handleCloseAssignModal = () => {
+    setShowAssignModal(false);
+    setJobToAssign(null);
   };
 
   if (loading) {
@@ -360,6 +399,7 @@ export const JobsTab: React.FC = () => {
               onStatusChange={handleStatusChange}
               onDelete={handleDeleteJob}
               onViewDetails={handleViewDetails}
+              onAssign={handleAssignJob}
             />
           ))}
         </div>
@@ -492,6 +532,14 @@ export const JobsTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Assignment Modal */}
+      <AssignJobModal
+        job={jobToAssign}
+        isOpen={showAssignModal}
+        onClose={handleCloseAssignModal}
+        onAssign={handleJobAssignment}
+      />
     </div>
   );
 };

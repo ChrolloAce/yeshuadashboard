@@ -10,6 +10,7 @@ import { TeamsTab } from '@/components/dashboard/TeamsTab';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
 import { CleanerDashboard } from '@/components/dashboard/CleanerDashboard';
+import { JobDiscovery } from '@/components/dashboard/JobDiscovery';
 import { AuthWrapper } from '@/components/auth/AuthWrapper';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -22,9 +23,22 @@ export default function DashboardPage() {
   };
 
   const renderCurrentTab = (): React.ReactNode => {
-    // If user is a cleaner, show cleaner dashboard
+    // If user is a cleaner, show cleaner-specific tabs
     if (userProfile?.role === 'cleaner') {
-      return <CleanerDashboard />;
+      switch (currentTab) {
+        case 'home':
+          return <CleanerDashboard />;
+        case 'discovery':
+          return <JobDiscovery />;
+        case 'schedule':
+          // TODO: Implement schedule view (for now, show dashboard)
+          return <CleanerDashboard />;
+        case 'settings':
+          // TODO: Implement cleaner settings (for now, show dashboard)
+          return <CleanerDashboard />;
+        default:
+          return <CleanerDashboard />;
+      }
     }
 
     // Company dashboard (owner/admin)

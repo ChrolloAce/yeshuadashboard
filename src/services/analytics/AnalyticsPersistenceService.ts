@@ -398,4 +398,120 @@ export class AnalyticsPersistenceService {
       return [];
     }
   }
+
+  /**
+   * Remove job from analytics when it's deleted
+   */
+  public async removeJobFromAnalytics(companyId: string, job: Job): Promise<void> {
+    try {
+      console.log('🔄 Removing job from analytics:', job.id);
+
+      // Remove from company metrics
+      await this.removeJobFromCompanyMetrics(companyId, job);
+
+      // Remove from daily snapshots (if exists)
+      await this.removeJobFromDailySnapshots(companyId, job);
+
+      console.log('✅ Job removed from analytics successfully');
+    } catch (error) {
+      console.error('❌ Error removing job from analytics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove job from company metrics
+   */
+  private async removeJobFromCompanyMetrics(companyId: string, job: Job): Promise<void> {
+    const metricsRef = doc(db, COLLECTIONS.COMPANY_METRICS, companyId);
+    const metricsDoc = await getDoc(metricsRef);
+
+    if (metricsDoc.exists()) {
+      const currentMetrics = metricsDoc.data() as CompanyMetrics;
+      const defaultCleanerRate = 0.70;
+      const cleanerPayment = job.assignedTo ? (job.pricing.finalPrice * defaultCleanerRate) : 0;
+      const profit = job.pricing.finalPrice - cleanerPayment;
+
+      const updates: Partial<CompanyMetrics> = {
+        lifetimeRevenue: Math.max(0, currentMetrics.lifetimeRevenue - job.pricing.finalPrice),
+        lifetimePaidToCleaners: Math.max(0, currentMetrics.lifetimePaidToCleaners - cleanerPayment),
+        lifetimeProfit: Math.max(0, currentMetrics.lifetimeProfit - profit),
+        lifetimeJobs: Math.max(0, currentMetrics.lifetimeJobs - 1),
+        lastUpdated: new Date()
+      };
+
+      // Recalculate average job value
+      updates.averageJobValue = (updates.lifetimeJobs || 0) > 0 ? (updates.lifetimeRevenue || 0) / (updates.lifetimeJobs || 0) : 0;
+
+      // Update current month if job was from current month
+      const jobDate = new Date(job.completedAt || job.createdAt);
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      const jobYear = jobDate.getFullYear();
+      const jobMonth = jobDate.getMonth() + 1;
+
+      if (currentMetrics.currentMonth.year === jobYear && currentMetrics.currentMonth.month === jobMonth) {
+        updates.currentMonth = {
+          ...currentMetrics.currentMonth,
+          revenue: Math.max(0, currentMetrics.currentMonth.revenue - job.pricing.finalPrice),
+          paidToCleaners: Math.max(0, currentMetrics.currentMonth.paidToCleaners - cleanerPayment),
+          profit: Math.max(0, currentMetrics.currentMonth.profit - profit),
+          jobsCompleted: Math.max(0, currentMetrics.currentMonth.jobsCompleted - 1)
+        };
+      }
+
+      await updateDoc(metricsRef, {
+        ...updates,
+        lastUpdated: Timestamp.fromDate(updates.lastUpdated!)
+      });
+
+      console.log('✅ Company metrics updated after job removal');
+    }
+  }
+
+  /**
+   * Remove job from daily snapshots
+   */
+  private async removeJobFromDailySnapshots(companyId: string, job: Job): Promise<void> {
+    try {
+      const jobDate = new Date(job.completedAt || job.createdAt);
+      const dateString = jobDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Query for snapshots on that date
+      const snapshotsQuery = query(
+        collection(db, COLLECTIONS.ANALYTICS_SNAPSHOTS),
+        where('companyId', '==', companyId),
+        where('date', '==', Timestamp.fromDate(new Date(dateString)))
+      );
+
+      const snapshotsSnapshot = await getDocs(snapshotsQuery);
+      
+      for (const doc of snapshotsSnapshot.docs) {
+        const snapshot = doc.data() as AnalyticsSnapshot;
+        
+        // Update snapshot metrics
+        const updatedMetrics = {
+          ...snapshot.metrics,
+          totalRevenue: Math.max(0, snapshot.metrics.totalRevenue - job.pricing.finalPrice),
+          totalJobs: Math.max(0, snapshot.metrics.totalJobs - 1),
+          completedJobs: Math.max(0, snapshot.metrics.completedJobs - 1),
+          totalPaidToCleaners: Math.max(0, snapshot.metrics.totalPaidToCleaners - (job.pricing.finalPrice * 0.7)),
+          totalProfit: Math.max(0, snapshot.metrics.totalProfit - (job.pricing.finalPrice * 0.3))
+        };
+
+        // Recalculate average job value
+        updatedMetrics.averageJobValue = updatedMetrics.totalJobs > 0 ? updatedMetrics.totalRevenue / updatedMetrics.totalJobs : 0;
+
+        await updateDoc(doc.ref, {
+          metrics: updatedMetrics,
+          updatedAt: Timestamp.fromDate(new Date())
+        });
+      }
+
+      console.log('✅ Daily snapshots updated after job removal');
+    } catch (error) {
+      console.error('❌ Error updating daily snapshots:', error);
+      // Don't throw error here as it's not critical
+    }
+  }
 }

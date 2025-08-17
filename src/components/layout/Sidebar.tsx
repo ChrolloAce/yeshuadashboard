@@ -12,7 +12,8 @@ import {
   Briefcase,
   LogOut,
   User,
-  UserCheck
+  UserCheck,
+  Search
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -48,6 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'home',
           label: 'Dashboard',
           icon: <Home className="w-5 h-5" />
+        },
+        {
+          id: 'discovery',
+          label: 'Job Discovery',
+          icon: <Search className="w-5 h-5" />
         },
         {
           id: 'schedule',

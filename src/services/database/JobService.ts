@@ -377,13 +377,23 @@ export class JobService {
   public async deleteJob(id: string): Promise<void> {
     try {
       const job = await this.getJob(id);
+      if (!job) {
+        throw new Error('Job not found');
+      }
+
       const docRef = doc(db, COLLECTIONS.JOBS, id);
       await deleteDoc(docRef);
 
       // Update client statistics
-      if (job) {
-        await this.updateClientJobStats(job.clientId);
+      await this.updateClientJobStats(job.clientId);
+
+      // Remove job from analytics if it was completed and paid
+      if (job.status === 'completed' && job.payment.status === 'paid') {
+        console.log('🔄 Removing completed job from analytics:', job.id);
+        await this.analyticsPersistenceService.removeJobFromAnalytics(job.companyId, job);
       }
+
+      console.log('✅ Job deleted successfully:', job.id);
     } catch (error) {
       console.error('Error deleting job:', error);
       throw new Error('Failed to delete job');
